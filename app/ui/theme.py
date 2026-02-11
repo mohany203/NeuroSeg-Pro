@@ -119,22 +119,28 @@ def apply_theme(app: QApplication):
             border-radius: 8px;
         }}
         
-        /* GroupBox - Modern & Minimal */
+        /* GroupBox - Modern & Block-like */
+        /* GroupBox - Modern & Block-like */
         QGroupBox {{
             background-color: {c["SURFACE"]};
             border: 1px solid {c["BORDER"]};
-            border-radius: 12px;
-            margin-top: 24px;
-            padding-top: 10px;
+            border-radius: 10px;
+            margin-top: 20px; /* Leave space for title */
+            padding-top: 15px;
+            padding-bottom: 10px;
+            padding-left: 10px;
+            padding-right: 10px;
         }}
         QGroupBox::title {{
             subcontrol-origin: margin;
             subcontrol-position: top left;
             padding: 0 5px;
             left: 10px;
+            bottom: 0px; /* Overlap border */
             color: {c["ACCENT"]};
             font-weight: bold;
-            font-size: {base_font_size + 1}px;
+            font-size: {base_font_size + 2}px;
+            background-color: {c["BACKGROUND"]}; /* Mask border behind title */
         }}
         
         /* Buttons */
@@ -327,8 +333,26 @@ def apply_theme(app: QApplication):
             border: 1px solid {c["PRIMARY"]};
             image: url(assets/icons/check.svg); 
         }}
-        /* Fallback check */
-        QCheckBox::indicator:checked {{
-            background-color: {c["PRIMARY"]};
+        /* Table Widget */
+        QTableWidget {{
+            background-color: {c["SURFACE"]};
+            border: 1px solid {c["BORDER"]};
+            border-radius: 8px;
+            gridline-color: {c["BORDER"]};
+        }}
+        QHeaderView::section {{
+            background-color: {c["SURFACE_LIGHT"]};
+            padding: 4px;
+            border: none;
+            border-bottom: 2px solid {c["BORDER"]};
+            color: {c["TEXT_SECONDARY"]};
+            font-weight: bold;
+        }}
+        QTableWidget::item {{
+            padding: 5px;
+        }}
+        QTableWidget::item:selected {{
+            background-color: {c["PRIMARY"]}30;
+            color: {c["TEXT_PRIMARY"]};
         }}
     """)
