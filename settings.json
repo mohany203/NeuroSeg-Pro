@@ -1,0 +1,20 @@
+{
+    "theme": "Dark",
+    "font_size": 32,
+    "visual_quality": "High",
+    "default_opacity": 0.6,
+    "show_grid": true,
+    "recent_files": [
+        "C:/Users/moham/Downloads/BraTS-PED-00024-000",
+        "C:/Users/moham/Downloads/BraTS-SSA-00055-000-seg.nii"
+    ],
+    "models": [
+        {
+            "id": "ad0d905b-47a3-4148-a23a-bcc75c8db041",
+            "name": "PED Teacher_model_after_epoch_50_trainLoss_1.7289_valLoss_0.9915",
+            "path": "models\\Teacher_model_after_epoch_50_trainLoss_1.7289_valLoss_0.9915.pth"
+        }
+    ],
+    "active_model_id": "ad0d905b-47a3-4148-a23a-bcc75c8db041",
+    "ask_model_on_run": false
+}

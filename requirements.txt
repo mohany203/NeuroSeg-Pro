@@ -1,0 +1,10 @@
+PyQt5
+
+torch
+torchvision
+nibabel
+numpy
+Pillow
+matplotlib
+monai
+pennylane
