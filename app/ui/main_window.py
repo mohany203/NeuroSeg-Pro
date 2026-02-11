@@ -14,6 +14,9 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.settings = Settings()
+        self.sidebar_expanded_width = 260
+        self.sidebar_collapsed_width = 76
+        self.sidebar_collapsed = bool(self.settings.get("sidebar_collapsed") or False)
         self.setWindowTitle("Brain Tumor Segmentation Pro")
         self.resize(1280, 850) # Slightly larger default
         
@@ -96,13 +99,30 @@ class MainWindow(QMainWindow):
         self.right_layout.addWidget(self.header_frame)
 
     def toggle_sidebar(self):
-        if self.sidebar.isVisible():
-            self.sidebar.hide()
+        self.sidebar_collapsed = not self.sidebar_collapsed
+        self.settings.set("sidebar_collapsed", self.sidebar_collapsed)
+        self.apply_sidebar_state()
+
+    def apply_sidebar_state(self):
+        if self.sidebar_collapsed:
+            self.sidebar.setFixedWidth(self.sidebar_collapsed_width)
+            self.title_label.setVisible(False)
+            self.btn_toggle_sidebar.setText("☷")
+            for btn in [self.btn_dashboard, self.btn_viewer, self.btn_help, self.btn_settings]:
+                btn.setText("")
+                btn.setToolTip(btn.property("full_text"))
         else:
-            self.sidebar.show()
+            self.sidebar.setFixedWidth(self.sidebar_expanded_width)
+            self.title_label.setVisible(True)
+            self.btn_toggle_sidebar.setText("☰")
+            for btn in [self.btn_dashboard, self.btn_viewer, self.btn_help, self.btn_settings]:
+                btn.setText(btn.property("full_text"))
+                btn.setToolTip("")
 
     def on_recent_file_clicked(self, file_path):
-        self.on_file_loaded(file_path, 'mri') # Default to MRI
+        import os
+        file_type = 'folder' if os.path.isdir(file_path) else 'mri'
+        self.on_file_loaded(file_path, file_type)
 
     def on_file_loaded(self, file_path, file_type):
         print(f"Loading {file_type}: {file_path}")
@@ -152,7 +172,7 @@ class MainWindow(QMainWindow):
     def setup_sidebar(self):
         self.sidebar = QFrame()
         self.sidebar.setObjectName("Sidebar")
-        self.sidebar.setFixedWidth(260)
+        self.sidebar.setFixedWidth(self.sidebar_expanded_width)
         
         self.sidebar_layout = QVBoxLayout(self.sidebar)
         self.sidebar_layout.setContentsMargins(20, 40, 20, 20)
@@ -190,6 +210,8 @@ class MainWindow(QMainWindow):
         self.btn_settings.clicked.connect(lambda: self.switch_page(2))
         self.btn_help.clicked.connect(self.show_tutorial)
 
+        self.apply_sidebar_state()
+
     def show_tutorial(self):
         from app.ui.tutorial_dialog import TutorialDialog
         dlg = TutorialDialog(self)
@@ -197,6 +219,7 @@ class MainWindow(QMainWindow):
 
     def create_nav_button(self, text, icon_name=None):
         btn = QPushButton(text)
+        btn.setProperty("full_text", text)
         btn.setCheckable(True)
         btn.setFixedHeight(50)
         btn.setCursor(Qt.PointingHandCursor)

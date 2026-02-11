@@ -124,11 +124,11 @@ class ViewerWidget(QWidget):
         # Controls Panel
         self.controls = QFrame()
         self.controls.setObjectName("Sidebar")
-        # self.controls.setFixedWidth(350) # Remove fixed width to allow splitter resizing
-        self.controls.setMinimumWidth(300) # Set minimum constraint
+        self.controls.setMinimumWidth(280)
+        self.controls.setMaximumWidth(460)
         self.control_layout = QVBoxLayout(self.controls)
-        self.control_layout.setContentsMargins(25, 25, 25, 25)
-        self.control_layout.setSpacing(20)
+        self.control_layout.setContentsMargins(16, 16, 16, 16)
+        self.control_layout.setSpacing(14)
         
         self.setup_controls()
         
@@ -150,9 +150,10 @@ class ViewerWidget(QWidget):
         # Set stretch factors: Viewport (index 0) gets all extra space (1), Sidebar (index 1) gets 0
         self.splitter.setStretchFactor(0, 1)
         self.splitter.setStretchFactor(1, 0)
+        self.splitter.setChildrenCollapsible(False)
         
         # Set initial sizes [large width, sidebar width]
-        self.splitter.setSizes([800, 350]) 
+        self.splitter.setSizes([900, 340]) 
         
         self.layout.addWidget(self.splitter)
         
@@ -327,7 +328,7 @@ class ViewerWidget(QWidget):
         # Model B Selection
         self.add_control_row(ai_layout, "Secondary Model (B):", self.create_info_button("Optional model for comparison."))
         self.combo_model_b = QComboBox()
-        self.combo_model_b.addItem("None (Single Model Mode)")
+        self.combo_model_b.addItem("None (Single Model)")
         self.combo_model_b.currentIndexChanged.connect(lambda i: self.on_model_changed(i, 'B'))
         ai_layout.addWidget(self.combo_model_b)
         
@@ -440,8 +441,6 @@ class ViewerWidget(QWidget):
         results_group.setLayout(results_layout)
         self.control_layout.addWidget(results_group)
         
-        self.control_layout.addStretch()
-
         # --- Section 4: Navigation & Export ---
         nav_group = QGroupBox("Navigation")
         nav_layout = QVBoxLayout()
@@ -472,6 +471,7 @@ class ViewerWidget(QWidget):
         nav_layout.addLayout(btns_layout)
         nav_group.setLayout(nav_layout)
         self.control_layout.addWidget(nav_group)
+        self.control_layout.addStretch()
         
         # Initialize Toggles
         self.show_grid = False
@@ -600,8 +600,8 @@ class ViewerWidget(QWidget):
     def update_slice(self, plane, value, label_widget):
         self.current_slice[plane] = value
         label_widget.setText(f"{plane.capitalize()}: {value}")
-        # If in comparison mode, we update both views if axial
-        if self.comparison_mode and plane == 'axial':
+        # In comparison mode every slice affects both panes.
+        if self.comparison_mode:
             self.update_all_2d_views()
         else:
             self.update_view(plane)
