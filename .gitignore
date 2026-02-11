@@ -1,19 +1,41 @@
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
 .venv/
-env/
 venv/
-.env
+env/
+
+# IDEs
 .idea/
 .vscode/
-*.log
-dist/
-build/
-*.egg-info/
-.DS_Store
-model_output/
+
+# Project Specific
 *.pth
-*.pt
-*.h5
-*.ckpt
-*.onnx
+model_output/
+.gemini/
+.agent/
+brain/
+scratch/
+
+# Logs
+*.log

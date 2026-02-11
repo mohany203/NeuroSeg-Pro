@@ -7,6 +7,7 @@ class InferenceEngine:
     def __init__(self, model_path: str = None, device: str = None):
         self.device = device if device else ("cuda" if torch.cuda.is_available() else "cpu")
         self.model = None
+        self.current_model_path = None
         if model_path:
             self.load_model(model_path)
 
@@ -62,6 +63,7 @@ class InferenceEngine:
                 self.model.load_state_dict(new_state_dict, strict=False)
             
             self.model.eval()
+            self.current_model_path = model_path
             print(f"Model loaded from {model_path}")
         except Exception as e:
             print(f"Error loading model: {e}")
@@ -104,3 +106,12 @@ class InferenceEngine:
                 outputs = torch.nn.functional.interpolate(outputs, size=original_shape, mode='trilinear', align_corners=False)
                 
             return torch.argmax(outputs, dim=1).detach().cpu().numpy()[0] # Remove batch dim
+
+    def run_inference(self, volume: np.ndarray, model_path: str):
+        """
+        Loads the model if necessary and runs inference.
+        """
+        if self.current_model_path != model_path:
+            self.load_model(model_path)
+            
+        return self.predict(volume)
