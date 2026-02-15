@@ -706,11 +706,11 @@ class ViewerWidget(QWidget):
             self.metrics_table.setItem(r, 0, item_name)
             
             # Col 1 & 2: Placeholders
-            for c in [1, 2]:
+            for col in [1, 2]:
                 item = QTableWidgetItem("\u2014")
                 item.setTextAlignment(Qt.AlignCenter)
                 item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-                self.metrics_table.setItem(r, c, item)
+                self.metrics_table.setItem(r, col, item)
 
         self.metrics_table.setMinimumHeight(scaled(280))
         self.metrics_table.setMaximumHeight(scaled(350))
