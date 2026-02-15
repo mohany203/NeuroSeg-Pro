@@ -1,3 +1,4 @@
+
 # Python
 __pycache__/
 *.py[cod]
@@ -24,6 +25,7 @@ wheels/
 .venv/
 venv/
 env/
+.env
 
 # IDEs
 .idea/
@@ -31,11 +33,16 @@ env/
 
 # Project Specific
 *.pth
+*.onnx
+models/
 model_output/
 .gemini/
 .agent/
 brain/
 scratch/
+temp_nb_output.txt
+temp_nb_scan.py
 
 # Logs
 *.log
+build_log.txt

@@ -1,20 +1,48 @@
 {
     "theme": "Dark",
-    "font_size": 28,
+    "font_size": 11,
     "visual_quality": "High",
     "default_opacity": 0.6,
     "show_grid": true,
     "recent_files": [
-        "C:/Users/moham/Downloads/BraTS-PED-00024-000",
-        "C:/Users/moham/Downloads/BraTS-SSA-00055-000-seg.nii"
+        {
+            "path": "C:/Users/moham/Downloads/GRAD PROJECT TESTS/BraTS-GLI-00016-000",
+            "timestamp": "2026-02-15 02:34:32"
+        }
     ],
     "models": [
         {
-            "id": "ad0d905b-47a3-4148-a23a-bcc75c8db041",
-            "name": "PED Teacher_model_after_epoch_50_trainLoss_1.7289_valLoss_0.9915",
+            "id": "c8125d47-6d1e-4db1-ada8-75151c524d8a",
+            "name": "Ped 50",
             "path": "models\\Teacher_model_after_epoch_50_trainLoss_1.7289_valLoss_0.9915.pth"
+        },
+        {
+            "id": "a1fdf254-556f-434f-9367-3447e764f017",
+            "name": "Teacher_model_after_epoch_50_trainLoss_1.7289_valLoss_0.9915.pth",
+            "path": "C:\\Users\\moham\\.gemini\\antigravity\\scratch\\Graduation_project_1\\models\\Teacher_model_after_epoch_50_trainLoss_1.7289_valLoss_0.9915.pth"
+        },
+        {
+            "id": "70c17884-ddef-43fa-91f5-cf8f5124e9c5",
+            "name": "AHMED EMAD",
+            "path": "models\\Ahmed Emad - Teacher_model_after_epoch_100_trainLoss_0.5972_valLoss_0.3019.pth"
+        },
+        {
+            "id": "3f4d95d2-1a48-4091-8f3e-481c0641e33b",
+            "name": "Ahmed Emad - Teacher_model_after_epoch_100_trainLoss_0.5972_valLoss_0.3019.pth",
+            "path": "C:\\Users\\moham\\.gemini\\antigravity\\scratch\\Graduation_project_1\\models\\Ahmed Emad - Teacher_model_after_epoch_100_trainLoss_0.5972_valLoss_0.3019.pth"
+        },
+        {
+            "id": "91e9c220-f7de-42ff-babe-49557f013a81",
+            "name": "OUR GLI",
+            "path": "models\\OUR GLI _Teacher_model_after_epoch_86_trainLoss_0.5955_valLoss_0.2984.pth"
+        },
+        {
+            "id": "d82cf399-32ed-450c-a1cd-b4e910d2b161",
+            "name": "OUR GLI _Teacher_model_after_epoch_86_trainLoss_0.5955_valLoss_0.2984.pth",
+            "path": "C:\\Users\\moham\\.gemini\\antigravity\\scratch\\Graduation_project_1\\models\\OUR GLI _Teacher_model_after_epoch_86_trainLoss_0.5955_valLoss_0.2984.pth"
         }
     ],
-    "active_model_id": "ad0d905b-47a3-4148-a23a-bcc75c8db041",
-    "ask_model_on_run": false
+    "active_model_id": "d82cf399-32ed-450c-a1cd-b4e910d2b161",
+    "ask_model_on_run": false,
+    "sidebar_collapsed": false
 }
