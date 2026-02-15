@@ -43,7 +43,7 @@ class NiftiLoader:
         Saves 3D data to a .nii.gz file.
         """
         if not file_path.endswith('.nii') and not file_path.endswith('.nii.gz'):
-             file_path += '.nii.gz'
+             file_path += '.nii'
              
         # Create Nifti Image
         # Ensure data is in standard float or int format if needed, but nibabel handles numpy well.
@@ -67,7 +67,7 @@ class NiftiLoader:
             't2': ['t2.nii', 't2.nii.gz', 't2w.nii', 't2w.nii.gz'],
             't1ce': ['t1ce.nii', 't1ce.nii.gz', 't1c.nii', 't1c.nii.gz'],
             'flair': ['flair.nii', 'flair.nii.gz', 't2f.nii', 't2f.nii.gz'],
-            'seg': ['seg.nii', 'seg.nii.gz']
+            'seg': ['seg.nii', 'seg.nii.gz', 'mask.nii', 'mask.nii.gz']
         }
 
         files = os.listdir(folder_path)

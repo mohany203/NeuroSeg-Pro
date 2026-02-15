@@ -16,7 +16,7 @@ except ImportError:
 
 # --- Quantum Config ---
 n_qubits = 10
-n_layers = 6 
+n_layers = 8 # Reverted to 8 as checkpoint has shape [8, 10, 3]
 
 if HAS_PENNYLANE:
     dev = qml.device("default.qubit", wires=n_qubits)

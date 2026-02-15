@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 
 SETTINGS_FILE = "settings.json"
 
@@ -40,6 +41,33 @@ class Settings:
                     self.data.update(loaded)
             except Exception as e:
                 print(f"Error loading settings: {e}")
+        
+        # Always scan for new models in 'models' folder
+        self.scan_for_models()
+
+    def scan_for_models(self):
+        """Scans the 'models' directory next to the executable/script for .pth files."""
+        # Determine base path
+        if getattr(sys, 'frozen', False):
+            base_dir = os.path.dirname(sys.executable)
+        else:
+            base_dir = os.path.abspath(".")
+            
+        models_dir = os.path.join(base_dir, "models")
+        if not os.path.exists(models_dir):
+            try:
+                os.makedirs(models_dir)
+            except OSError:
+                pass # Might be read-only
+                
+        if os.path.exists(models_dir):
+            for f in os.listdir(models_dir):
+                if f.endswith(".pth"):
+                    full_path = os.path.join(models_dir, f)
+                    # Check if already registered
+                    existing = [m for m in self.data.get("models", []) if os.path.normpath(m["path"]) == os.path.normpath(full_path)]
+                    if not existing:
+                        self.add_model(name=f, path=full_path)
 
     def save(self):
         try:
@@ -56,12 +84,42 @@ class Settings:
         self.save()
 
     def add_recent(self, file_path):
+        from datetime import datetime
         recents = self.data.get("recent_files", [])
-        if file_path in recents:
-            recents.remove(file_path)
-        recents.insert(0, file_path)
+        
+        # Remove existing if present (handle both string and dict)
+        recents = [r for r in recents if (isinstance(r, dict) and r['path'] != file_path) or (isinstance(r, str) and r != file_path)]
+        
+        # Add new entry
+        entry = {
+            "path": file_path,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        recents.insert(0, entry)
         self.data["recent_files"] = recents[:10]  # Keep last 10
         self.save()
+
+    def remove_recent(self, file_path):
+        recents = self.data.get("recent_files", [])
+        # Filter out the specific path
+        new_recents = [r for r in recents if (isinstance(r, dict) and r['path'] != file_path) or (isinstance(r, str) and r != file_path)]
+        
+        if len(new_recents) != len(recents):
+            self.data["recent_files"] = new_recents
+            self.save()
+            return True
+        return False
+
+    def get_recent_files(self):
+        """Returns recent files, normalizing them to dicts."""
+        raw = self.data.get("recent_files", [])
+        normalized = []
+        for r in raw:
+            if isinstance(r, str):
+                normalized.append({"path": r, "timestamp": "Unknown"})
+            elif isinstance(r, dict):
+                normalized.append(r)
+        return normalized
 
     def add_model(self, name, path):
         """Adds a new model to the registry."""

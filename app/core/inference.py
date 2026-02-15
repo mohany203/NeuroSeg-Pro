@@ -78,34 +78,74 @@ class InferenceEngine:
             raise ValueError("Model not loaded.")
 
         with torch.no_grad():
-            # Prepare Input
-            input_tensor = torch.from_numpy(input_data).unsqueeze(0).float().to(self.device) # (1, 4, D, H, W)
-            
-            # --- 1. RESIZE TO MODEL INPUT SIZE (128, 128, 128) ---
-            original_shape = input_tensor.shape[2:] # (D, H, W)
-            target_size = (128, 128, 128)
-            
-            needs_resize = (original_shape != target_size)
-            
-            if needs_resize:
-                # Trilinear for continuous image data; align_corners=False is safer for size preservation
-                input_tensor = torch.nn.functional.interpolate(input_tensor, size=target_size, mode='trilinear', align_corners=False)
-                
-            outputs_dict = self.model(input_tensor)
-            
-            # Depending on model wrapper, output might be dict or tensor
-            if isinstance(outputs_dict, dict):
-                outputs = outputs_dict['pred'] # (B, 4, 128, 128, 128)
+            # Input: (C, D, H, W) -> (B, C, D, H, W)
+            input_tensor = torch.from_numpy(input_data).unsqueeze(0).float().to(self.device)
+
+            # Use full-volume inference for moderate volumes and sliding-window for large ones.
+            # This avoids destructive global resize that can collapse small enhancing regions.
+            spatial_shape = input_tensor.shape[2:]
+            max_dim = max(spatial_shape)
+            if max_dim > 160:
+                raw_output = sliding_window_inference(
+                    inputs=input_tensor,
+                    roi_size=(128, 128, 128),
+                    sw_batch_size=1,
+                    predictor=self.model,
+                    overlap=0.5,
+                    mode="gaussian",
+                )
             else:
-                outputs = outputs_dict
-                
-            # --- 2. RESIZE BACK TO ORIGINAL SHAPE ---
-            if needs_resize:
-                # Nearest for class labels (or interpolate logits then argmax)
-                # Better to interpolate logits (trilinear) then argmax to preserve boundaries smoothly
-                outputs = torch.nn.functional.interpolate(outputs, size=original_shape, mode='trilinear', align_corners=False)
-                
-            return torch.argmax(outputs, dim=1).detach().cpu().numpy()[0] # Remove batch dim
+                raw_output = self.model(input_tensor)
+
+            # ── Sigmoid-based hierarchical post-processing ──
+            # Model outputs 4 channels: [BG, WT, TC, ET] via sigmoid (NOT softmax).
+            # Apply sigmoid > 0.5 thresholding, then priority-based label assignment.
+            # Priority: ET (3) overwrites TC/NCR (1) overwrites WT/ED (2).
+            # Reference: github.com/AhmeddEmad7/Brain-Tumor-Segmentation-Advancing-Generalizability
+            outputs = self._extract_logits(raw_output)
+            if outputs.ndim != 5:
+                raise ValueError(f"Unexpected model output shape {tuple(outputs.shape)}. Expected (B, C, D, H, W).")
+
+            output_probs = (torch.sigmoid(outputs) > 0.5)
+            output = output_probs[0]  # Remove batch dim → (C, D, H, W)
+
+            _, D, H, W = output.shape
+            seg_mask = torch.zeros((D, H, W), dtype=torch.float32, device=output.device)
+
+            # Channel 1 = Whole Tumor  → assign label 2 (Edema) by default
+            seg_mask[output[1] == 1] = 2
+            # Channel 2 = Tumor Core   → overwrite with label 1 (Necrosis/NCR)
+            seg_mask[output[2] == 1] = 1
+            # Channel 3 = Enhancing    → overwrite with label 3 (Enhancing Tumor/ET)
+            seg_mask[output[3] == 1] = 3
+
+            return seg_mask.cpu().numpy().astype(np.uint8)
+
+    def _extract_logits(self, raw_output: torch.Tensor):
+        """Normalizes model outputs into a logits tensor of shape (B, C, D, H, W)."""
+        if isinstance(raw_output, dict):
+            # Prefer common segmentation keys.
+            for key in ("pred", "logits", "output", "out"):
+                if key in raw_output and torch.is_tensor(raw_output[key]):
+                    return raw_output[key]
+
+            # Fallback: first tensor value in dict.
+            for value in raw_output.values():
+                if torch.is_tensor(value):
+                    return value
+
+            raise ValueError("Model output dict does not contain a tensor prediction.")
+
+        if isinstance(raw_output, (tuple, list)):
+            for value in raw_output:
+                if torch.is_tensor(value):
+                    return value
+            raise ValueError("Model output tuple/list does not contain a tensor prediction.")
+
+        if torch.is_tensor(raw_output):
+            return raw_output
+
+        raise ValueError(f"Unsupported model output type: {type(raw_output)}")
 
     def run_inference(self, volume: np.ndarray, model_path: str):
         """

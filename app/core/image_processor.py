@@ -11,85 +11,150 @@ class ImageProcessor:
         return (data - min_val) / (max_val - min_val)
 
     @staticmethod
-    def z_score_normalize(data: np.ndarray):
+    def z_score_normalize(data: np.ndarray, nonzero: bool = True):
         """
         Applies Z-Score normalization (mean=0, std=1).
-        Calculates statistics only on non-zero region to avoid background bias.
+        Args:
+            data: Input image volume
+            nonzero: If True, calculates statistics only on non-zero region.
+                     If False, calculates statistics on entire volume (matches MONAI training).
         """
-        mask = data > 0
-        if not np.any(mask):
-            return data
+        if nonzero:
+            mask = data > 0
+            if not np.any(mask):
+                return data
+                
+            mean = data[mask].mean()
+            std = data[mask].std()
             
-        mean = data[mask].mean()
-        std = data[mask].std()
-        
-        if std == 0:
-            return data
-            
-        normalized = np.zeros_like(data)
-        normalized[mask] = (data[mask] - mean) / std
-        return normalized
+            if std == 0:
+                return data
+                
+            normalized = np.zeros_like(data)
+            normalized[mask] = (data[mask] - mean) / std
+            return normalized
+        else:
+            # Normalize entire volume (including background)
+            mean = data.mean()
+            std = data.std()
+            if std == 0:
+                return data - mean
+            return (data - mean) / std
 
     @staticmethod
     def get_slice(data: np.ndarray, plane: str, index: int):
         """
         Extracts a 2D slice from the 3D volume.
         plane: 'axial', 'sagittal', or 'coronal'
+        Orientation follows radiological convention (RAS+ NIfTI).
         """
+        # User Request: "Rotate 90 deg anticlockwise and flip vertically" relative to previous state.
+        # Function to apply this transform to the base slice extraction
+        def transform(s):
+             # 1. Rotate 90 deg Anti-Clockwise
+             rotated = np.rot90(s, k=1)
+             # 2. Flip Vertically
+             return np.flipud(rotated)
+
         if plane == 'axial':
-            # Horizontal cut (xy plane) - usually z-axis
-            # Transpose to make it visually correct if needed
+            # Horizontal cut (xy plane) - z-axis index
             slice_data = data[:, :, index]
-            return np.rot90(slice_data) 
+            # Previous: return np.flipud(slice_data)
+            # New: Apply transform to the previous result
+            return transform(np.flipud(slice_data))
+            
         elif plane == 'sagittal':
-            # Side view (yz plane) - usually x-axis
+            # Side view (yz plane) - x-axis index
             slice_data = data[index, :, :]
-            return np.rot90(slice_data)
+            # Sagittal: User requested "Rotate 90 deg anticlockwise and flip vertically" relative to previous state.
+            current = np.flipud(slice_data)
+            rotated = np.rot90(current, k=1)
+            return np.flipud(rotated)
+
         elif plane == 'coronal':
-            # Front view (xz plane) - usually y-axis
+            # Front view (xz plane) - y-axis index
             slice_data = data[:, index, :]
-            return np.rot90(slice_data)
+            # Previous: return np.flipud(slice_data)
+            # New: Apply transform to the previous result
+            return transform(np.flipud(slice_data))
+
         else:
             raise ValueError("Invalid plane. Use 'axial', 'sagittal', or 'coronal'.")
 
     @staticmethod
     def calculate_metrics(pred_mask: np.ndarray, gt_mask: np.ndarray, voxel_vol_mm3: float = 1.0):
         """
-        Calculates Dice Score and Tumor Volume for each class.
-        Classes: 1 (NCR), 2 (ED), 4 (ET)
+        Calculates comprehensive segmentation metrics for defined ROIs.
+        ROIs: Whole Tumor (WT), Tumor Core (TC), Enhancing Tumor (ET), Necrosis (NC), Edema (ED).
+        Metrics: Dice, IoU, Sensitivity, Specificity, Precision, HD95, Volume.
         """
+        from app.core.constants import ROI_DEFINITIONS
         metrics = {}
-        classes = {1: "Necrosis", 2: "Edema", 4: "Enhancing"}
+
+        # Helper for surface distance (HD95)
+        def compute_hd95(p, g):
+            if not np.any(p) or not np.any(g):
+                return -1.0 # Undefined
+            
+            try:
+                from scipy.spatial.distance import directed_hausdorff
+                # Get coordinates of boundary points (using slightly eroded mask XOR mask? or just all points)
+                # Optimization: Use points from edges only if possible, but here we stick to simple point sets
+                p_points = np.argwhere(p)
+                g_points = np.argwhere(g)
+                
+                # Subsample if too large to speed up (approximate)
+                max_points = 2000 
+                if len(p_points) > max_points:
+                    idx = np.random.choice(len(p_points), max_points, replace=False)
+                    p_points = p_points[idx]
+                if len(g_points) > max_points:
+                    idx = np.random.choice(len(g_points), max_points, replace=False)
+                    g_points = g_points[idx]
+                
+                d_forward = directed_hausdorff(p_points, g_points)[0]
+                d_backward = directed_hausdorff(g_points, p_points)[0]
+                return max(d_forward, d_backward)
+            except ImportError:
+                return -1.0 # Scipy not installed
+            except Exception:
+                return 0.0
+
+        for roi_name, labels in ROI_DEFINITIONS.items():
+            # Create Binary Masks for this ROI
+            if len(labels) == 1:
+                p = (pred_mask == labels[0])
+                g = (gt_mask == labels[0])
+            else:
+                p = np.isin(pred_mask, labels)
+                g = np.isin(gt_mask, labels)
+            
+            # Confusion Matrix
+            tp = np.logical_and(p, g).sum()
+            fp = np.logical_and(p, np.logical_not(g)).sum()
+            fn = np.logical_and(np.logical_not(p), g).sum()
+            tn = np.logical_and(np.logical_not(p), np.logical_not(g)).sum()
+            
+            # Metrics
+            dice = (2. * tp) / (2. * tp + fp + fn + 1e-6)
+            iou = tp / (tp + fp + fn + 1e-6)
+            sensitivity = tp / (tp + fn + 1e-6)
+            specificity = tn / (tn + fp + 1e-6)
+            precision = tp / (tp + fp + 1e-6)
+            
+            # HD95 (Only if there is overlap or at least both have content)
+            hd95 = compute_hd95(p, g) if (tp > 0 or (fp >0 and fn > 0)) else 0.0
         
-        for label, name in classes.items():
-            p = (pred_mask == label)
-            g = (gt_mask == label)
-            
-            # Dice
-            intersection = np.logical_and(p, g).sum()
-            union = p.sum() + g.sum()
-            dice = (2. * intersection) / (union + 1e-6) # Add epsilon to avoid div by zero
-            
-            # Volume
-            vol = p.sum() * voxel_vol_mm3
-            
-            metrics[name] = {
+            metrics[roi_name] = {
                 "dice": dice,
-                "volume": vol
+                "iou": iou,
+                "sensitivity": sensitivity,
+                "specificity": specificity,
+                "precision": precision,
+                "hd95": hd95,
+                "volume": p.sum() * voxel_vol_mm3
             }
             
-        # Whole Tumor (1+2+4)
-        p_wt = (pred_mask > 0)
-        g_wt = (gt_mask > 0)
-        intersection_wt = np.logical_and(p_wt, g_wt).sum()
-        union_wt = p_wt.sum() + g_wt.sum()
-        dice_wt = (2. * intersection_wt) / (union_wt + 1e-6)
-        
-        metrics["Whole Tumor"] = {
-            "dice": dice_wt,
-            "volume": p_wt.sum() * voxel_vol_mm3
-        }
-        
         return metrics
 
     @staticmethod
