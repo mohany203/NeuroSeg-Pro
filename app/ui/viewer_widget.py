@@ -641,6 +641,29 @@ class ViewerWidget(QWidget):
         results_layout.addWidget(self.combo_metric_class)
         
         # Detailed Metrics Table — stretches columns to fit panel width
+        # --- Dynamic Metrics Table (Hidden by default) ---
+        self.dynamic_metrics_table = QTableWidget()
+        self.dynamic_metrics_table.setColumnCount(3)
+        self.dynamic_metrics_table.setHorizontalHeaderLabels(["Selected ROI", "Model A", "Model B"])
+        self.dynamic_metrics_table.verticalHeader().setVisible(False)
+        self.dynamic_metrics_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.dynamic_metrics_table.horizontalHeader().setStretchLastSection(True)
+        self.dynamic_metrics_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.dynamic_metrics_table.setRowCount(2) # Dice, HD95
+        # Calculate height: Header + 2 Rows. Approx 35px per row/header.
+        # scaled(110) should be sufficient for 3 * 35 = 105.
+        self.dynamic_metrics_table.setMinimumHeight(scaled(120)) 
+        self.dynamic_metrics_table.setMaximumHeight(scaled(150))
+        self.dynamic_metrics_table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.dynamic_metrics_table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.dynamic_metrics_table.setAlternatingRowColors(True)
+        self.dynamic_metrics_table.setSelectionMode(QTableWidget.NoSelection)
+        self.dynamic_metrics_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.dynamic_metrics_table.setVisible(False) # Hidden initially
+        
+        results_layout.addWidget(self.dynamic_metrics_table)
+
+        # --- Detailed Metrics Table (Permanent: WT, TC, ET) ---
         self.metrics_table = QTableWidget()
         self.metrics_table.setColumnCount(3)
         self.metrics_table.setHorizontalHeaderLabels(["Metric", "Model A", "Model B"])
@@ -666,9 +689,9 @@ class ViewerWidget(QWidget):
 
         # -- Row Configuration --
         # Row 0: Header "Dice Score"
-        # Rows 1-3: ET, NCR, ED Dice
+        # Rows 1-3: WT, TC, ET Dice
         # Row 4: Header "HD95 (mm)"
-        # Rows 5-7: ET, NCR, ED HD95
+        # Rows 5-7: WT, TC, ET HD95
         
         # 1. Setup Section Headers
         for row, title in [(0, "Dice Score"), (4, "HD95 (mm)")]:
@@ -685,20 +708,31 @@ class ViewerWidget(QWidget):
             item.setFlags(Qt.ItemIsEnabled) # No select, no edit
 
         # 2. Setup Data Rows
-        # Map: (Row Index, Label, Color Key)
+        # Map: (Row Index, Label, Color Key/Tuple)
+        # WT and TC don't have single colors in ROI_COLORS, so we pick representative or neutral
+        # ET uses its defined color.
+        
+        # Colors:
+        # WT: White/Gray (Neutral)
+        # TC: Blue/Cyan (Neutral)
+        # ET: Red (Defined)
+        
+        c_wt = (200, 200, 200, 255)
+        c_tc = (100, 150, 255, 255)
+        c_et = ROI_COLORS.get(Labels.ET, (128, 128, 128, 255))
+        
         data_rows = [
-            (1, "Enhancing Tumor", Labels.ET),
-            (2, "Necrosis", Labels.NCR),
-            (3, "Edema", Labels.ED),
-            (5, "Enhancing Tumor", Labels.ET),
-            (6, "Necrosis", Labels.NCR),
-            (7, "Edema", Labels.ED),
+            (1, "Whole Tumor", c_wt),
+            (2, "Tumor Core", c_tc),
+            (3, "Enhancing Tumor", c_et),
+            (5, "Whole Tumor", c_wt),
+            (6, "Tumor Core", c_tc),
+            (7, "Enhancing Tumor", c_et),
         ]
 
-        for r, label, color_key in data_rows:
+        for r, label, color_tuple in data_rows:
             # Col 0: Label + Icon
-            color = ROI_COLORS.get(color_key, (128, 128, 128, 255))
-            icon = create_legend_icon(color)
+            icon = create_legend_icon(color_tuple)
             
             item_name = QTableWidgetItem(label)
             item_name.setIcon(icon)
@@ -1268,33 +1302,45 @@ class ViewerWidget(QWidget):
         self.update_3d_view(mask, is_mask=True, custom_colors=colors, is_diff=is_diff)
 
     def update_metrics_display(self, *args):
-        """Updates the metrics table with fixed ET, Necrosis, and Edema scores."""
-        # Row Config: (ROI Name, Metric Key, Row Index)
-        # Section 1: Dice (Rows 1-3)
-        # Section 2: HD95 (Rows 5-7)
-        # Rows 0 and 4 are headers.
+        """Updates both dynamic and permanent metrics tables."""
         
-        row_config = [
-            ("Enhancing Tumor", "dice", 1),
-            ("Necrosis", "dice", 2),
-            ("Edema", "dice", 3),
-            ("Enhancing Tumor", "hd95", 5),
-            ("Necrosis", "hd95", 6),
-            ("Edema", "hd95", 7),
+        # --- 0. Dynamic Column Visibility (Model B) ---
+        has_model_b = bool(self.metrics_b)
+        
+        # Hide/Show Column 2 (Model B)
+        self.metrics_table.setColumnHidden(2, not has_model_b)
+        self.dynamic_metrics_table.setColumnHidden(2, not has_model_b)
+        
+        # Adjust Header Spans (Dice & HD95) in Permanent Table
+        # Rows 0 and 4 are headers
+        header_span = 3 if has_model_b else 2
+        self.metrics_table.setSpan(0, 0, 1, header_span)
+        self.metrics_table.setSpan(4, 0, 1, header_span)
+
+        # --- 1. Update Permanent Table (WT, TC, ET) ---
+        # Map: (ROI Name, Metric Key, Row Index)
+        # 1-3: Dice (WT, TC, ET)
+        # 5-7: HD95 (WT, TC, ET)
+        perm_config = [
+            ("WT", "dice", 1),
+            ("TC", "dice", 2),
+            ("ET", "dice", 3),
+            ("WT", "hd95", 5),
+            ("TC", "hd95", 6),
+            ("ET", "hd95", 7),
         ]
         
-        for roi_name, metric_key, row_idx in row_config:
+        for roi_name, metric_key, row_idx in perm_config:
             # Model A
             val_a = "-"
             if self.metrics_a and roi_name in self.metrics_a:
                 raw_a = self.metrics_a[roi_name].get(metric_key, 0.0)
                 if metric_key == "hd95":
-                    val_a = f"{raw_a:.2f}" # Remove 'mm' to save space since header has it
+                    val_a = f"{raw_a:.2f}"
                 else:
                     val_a = f"{raw_a:.3f}"
             
             item_a = self.metrics_table.item(row_idx, 1)
-            # Ensure item exists
             if not item_a:
                 item_a = QTableWidgetItem()
                 item_a.setTextAlignment(Qt.AlignCenter)
@@ -1318,6 +1364,46 @@ class ViewerWidget(QWidget):
                 item_b.setFlags(item_b.flags() & ~Qt.ItemIsEditable)
                 self.metrics_table.setItem(row_idx, 2, item_b)
             item_b.setText(str(val_b))
+
+        # --- 2. Update Dynamic Table ---
+        current_roi = self.combo_metric_class.currentText()
+        if not current_roi: current_roi = "Whole Tumor"
+        
+        # Show dynamic table ONLY for specific single classes
+        dynamic_targets = ["Necrosis", "Edema", "Enhancing Tumor"]
+        
+        if current_roi in dynamic_targets:
+            self.dynamic_metrics_table.setVisible(True)
+            self.dynamic_metrics_table.horizontalHeaderItem(0).setText(f"Selected: {current_roi}")
+            
+            # Rows: 0=Dice, 1=HD95
+            for row_idx, metric_key in enumerate(["dice", "hd95"]):
+                # Set Metric Name in Col 0
+                m_name = "Dice Score" if metric_key == "dice" else "HD95 (mm)"
+                self.dynamic_metrics_table.setItem(row_idx, 0, QTableWidgetItem(m_name))
+                
+                # Model A
+                val_a = "-"
+                if self.metrics_a and current_roi in self.metrics_a:
+                    raw_a = self.metrics_a[current_roi].get(metric_key, 0.0)
+                    val_a = f"{raw_a:.2f}" if metric_key == "hd95" else f"{raw_a:.3f}"
+                self.dynamic_metrics_table.setItem(row_idx, 1, QTableWidgetItem(str(val_a)))
+                
+                # Model B
+                val_b = "-"
+                if self.metrics_b and current_roi in self.metrics_b:
+                    raw_b = self.metrics_b[current_roi].get(metric_key, 0.0)
+                    val_b = f"{raw_b:.2f}" if metric_key == "hd95" else f"{raw_b:.3f}"
+                self.dynamic_metrics_table.setItem(row_idx, 2, QTableWidgetItem(str(val_b)))
+                
+                # Alignment
+                for c in range(3):
+                    it = self.dynamic_metrics_table.item(row_idx, c)
+                    if it: 
+                        it.setTextAlignment(Qt.AlignCenter)
+                        it.setFlags(Qt.ItemIsEnabled)
+        else:
+            self.dynamic_metrics_table.setVisible(False)
 
     def show_metrics_context_menu(self, pos):
         from PyQt5.QtWidgets import QMenu, QAction
