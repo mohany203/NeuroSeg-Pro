@@ -722,12 +722,12 @@ class ViewerWidget(QWidget):
         c_et = ROI_COLORS.get(Labels.ET, (128, 128, 128, 255))
         
         data_rows = [
-            (1, "Whole Tumor", c_wt),
-            (2, "Tumor Core", c_tc),
-            (3, "Enhancing Tumor", c_et),
-            (5, "Whole Tumor", c_wt),
-            (6, "Tumor Core", c_tc),
-            (7, "Enhancing Tumor", c_et),
+            (1, "WT", c_wt),
+            (2, "TC", c_tc),
+            (3, "ET", c_et),
+            (5, "WT", c_wt),
+            (6, "TC", c_tc),
+            (7, "ET", c_et),
         ]
 
         for r, label, color_tuple in data_rows:
@@ -1322,12 +1322,12 @@ class ViewerWidget(QWidget):
         # 1-3: Dice (WT, TC, ET)
         # 5-7: HD95 (WT, TC, ET)
         perm_config = [
-            ("WT", "dice", 1),
-            ("TC", "dice", 2),
-            ("ET", "dice", 3),
-            ("WT", "hd95", 5),
-            ("TC", "hd95", 6),
-            ("ET", "hd95", 7),
+            ("Whole Tumor", "dice", 1),
+            ("Tumor Core", "dice", 2),
+            ("Enhancing Tumor", "dice", 3),
+            ("Whole Tumor", "hd95", 5),
+            ("Tumor Core", "hd95", 6),
+            ("Enhancing Tumor", "hd95", 7),
         ]
         
         for roi_name, metric_key, row_idx in perm_config:
