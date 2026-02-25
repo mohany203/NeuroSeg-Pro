@@ -33,10 +33,40 @@ if not exist ".venv" (
 )
 
 echo.
-echo Installing PyTorch (CPU Version)...
+echo ==========================================
+echo PyTorch Installation Type
+echo ==========================================
+echo The application can run using your GPU (NVIDIA CUDA) or your CPU.
+echo  - GPU (CUDA) is much faster but requires a compatible NVIDIA graphics card.
+echo  - CPU works on all computers but is slower.
+echo.
+set /p INSTALL_CUDA="Do you want to install the GPU (CUDA) version? (Y/N): "
+
 call ".venv\Scripts\activate.bat"
 python -m pip install --upgrade pip
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+if /I "%INSTALL_CUDA%"=="Y" (
+    echo.
+    echo Checking for NVIDIA CUDA Compiler (nvcc)...
+    nvcc --version >nul 2>&1
+    if !errorLevel! equ 0 (
+        echo CUDA detected. Installing PyTorch for CUDA 12.1...
+        pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+        if !errorLevel! neq 0 (
+            echo Failed to install CUDA PyTorch. Falling back to CPU version...
+            pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+        )
+    ) else (
+        echo CUDA (nvcc) not found on system path. Please ensure NVIDIA drivers and CUDA Toolkit are installed.
+        echo Falling back to CPU version of PyTorch...
+        pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+    )
+) else (
+    echo.
+    echo Installing PyTorch (CPU Version)...
+    pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+)
+
 if %errorLevel% neq 0 (
     echo Failed to install PyTorch.
     pause
