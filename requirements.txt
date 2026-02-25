@@ -9,3 +9,5 @@ Pillow
 matplotlib
 monai
 pennylane
+scipy
+scikit-image
