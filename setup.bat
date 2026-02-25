@@ -48,13 +48,12 @@ echo Setting up Icon...
 python -c "from PIL import Image; import os; icon_path='assets/NeuroSeg_App_Icon.png'; ico_path='assets/NeuroSeg_App_Icon.ico'; Image.open(icon_path).save(ico_path, format='ICO', sizes=[(256, 256)]) if os.path.exists(icon_path) and not os.path.exists(ico_path) else None"
 
 echo Creating Desktop Shortcut...
-set "SHORTCUT_PATH=%USERPROFILE%\Desktop\NeuroSeg-Pro.lnk"
 set "TARGET_PATH=%~dp0run_app.bat"
 set "ICON_PATH=%~dp0assets\NeuroSeg_App_Icon.ico"
 set "WORK_DIR=%~dp0"
 
-:: PowerShell script to create the shortcut
-powershell -Command "$wshell = New-Object -ComObject WScript.Shell; $shortcut = $wshell.CreateShortcut('%SHORTCUT_PATH%'); $shortcut.TargetPath = '%TARGET_PATH%'; $shortcut.WorkingDirectory = '%WORK_DIR%'; $shortcut.IconLocation = '%ICON_PATH%'; $shortcut.Save()"
+:: PowerShell script to create the shortcut using the correct system Desktop path
+powershell -Command "$desktop = [Environment]::GetFolderPath('Desktop'); $shortcutPath = Join-Path $desktop 'NeuroSeg-Pro.lnk'; $wshell = New-Object -ComObject WScript.Shell; $shortcut = $wshell.CreateShortcut($shortcutPath); $shortcut.TargetPath = '%TARGET_PATH%'; $shortcut.WorkingDirectory = '%WORK_DIR%'; $shortcut.IconLocation = '%ICON_PATH%'; $shortcut.Save()"
 
 if %errorLevel% equ 0 (
     echo Shortcut created on Desktop.
