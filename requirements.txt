@@ -3,8 +3,6 @@ pyqtgraph
 PyOpenGL
 PyOpenGL_accelerate
 
-torch
-torchvision
 nibabel
 numpy
 Pillow
