@@ -8,7 +8,7 @@ set PYTHONPATH=%~dp0
 set PATH=%VENV_PATH%\Scripts;%VENV_PATH%\Lib\site-packages\PyQt5\Qt5\bin;%PATH%
 
 echo Starting NeuroSeg Pro...
-python app/main.py
+"%VENV_PATH%\Scripts\python.exe" app/main.py
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo Application crashed with error code %ERRORLEVEL%
