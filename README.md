@@ -30,32 +30,26 @@ NeuroSeg-Pro is a PyQt5-based application designed for visualizing and segmentin
 ## 🛠️ Installation & Setup
 
 ### Prerequisites
-- Python 3.8+
-- [Git](https://git-scm.com/)
+- Python 3.8+ (Ensure Python is added to your PATH during installation)
+- [Git](https://git-scm.com/) (Optional, for cloning)
 
-### 1. Clone the Repository
+### 1. Download the Application
+If you have Git installed, clone the repository:
 ```bash
-git clone https://github.com/yourusername/NeuroSeg-Pro.git
+git clone https://github.com/mohany203/NeuroSeg-Pro.git
 cd NeuroSeg-Pro
 ```
+*(Alternatively, you can download the project as a ZIP file from GitHub and extract it).*
 
-### 2. Create a Virtual Environment (Recommended)
-```bash
-# Windows
-python -m venv .venv
-.venv\Scripts\activate
+### 2. Run Setup (Automated)
+We provide an automated setup script that creates a virtual environment, installs all necessary libraries, and creates a desktop shortcut for you.
 
-# Linux/Mac
-python3 -m venv .venv
-source .venv/bin/activate
-```
+1. Locate the **`setup.bat`** file in the project folder.
+2. **Double-click** `setup.bat`.
+3. It will prompt for Administrator privileges (required to install libraries and create shortcuts). Click **Yes**.
+4. Wait for the installation to finish.
 
-### 3. Install Dependencies
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Setup Models
+### 3. Setup Models
 > **Note:** Due to file size limits, pre-trained model weights (`.pth` files) are NOT included in this repository.
 > Please place your model files in the `models/` directory.
 
@@ -74,11 +68,10 @@ NeuroSeg-Pro/
 
 ## ▶️ Running the Application
 
-To launch the main application interface:
+After running the setup, you can launch the application by double-clicking the **NeuroSeg-Pro** shortcut on your Desktop!
 
-```bash
-python -m app.main
-```
+Alternatively, you can run the application directly from the folder:
+- Double-click the **`run_app.bat`** file.
 
 ---
 
