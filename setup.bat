@@ -52,18 +52,21 @@ goto InstallCPU
 echo.
 echo Checking for NVIDIA CUDA Compiler (nvcc)...
 nvcc --version >nul 2>&1
-if !errorLevel! equ 0 (
-    echo CUDA detected. Installing PyTorch for CUDA 12.1...
-    pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
-    if !errorLevel! neq 0 (
-        echo Failed to install CUDA PyTorch. Falling back to CPU version...
-        pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-    )
-) else (
-    echo CUDA (nvcc) not found on system path. Please ensure NVIDIA drivers and CUDA Toolkit are installed.
-    echo Falling back to CPU version of PyTorch...
-    pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+if %errorLevel% neq 0 goto FallbackCPU
+
+echo CUDA detected. Installing PyTorch for CUDA 12.1...
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+if %errorLevel% neq 0 (
+    echo Failed to install CUDA PyTorch.
+    goto FallbackCPU
 )
+goto FinishedPyTorch
+
+:FallbackCPU
+echo.
+echo CUDA (nvcc) not found or installation failed.
+echo Falling back to CPU version of PyTorch...
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 goto FinishedPyTorch
 
 :InstallCPU
