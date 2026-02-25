@@ -33,9 +33,18 @@ if not exist ".venv" (
 )
 
 echo.
-echo Installing Requirements...
+echo Installing PyTorch (CPU Version)...
 call ".venv\Scripts\activate.bat"
 python -m pip install --upgrade pip
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+if %errorLevel% neq 0 (
+    echo Failed to install PyTorch.
+    pause
+    exit /b
+)
+
+echo.
+echo Installing Other Requirements...
 pip install -r requirements.txt
 if %errorLevel% neq 0 (
     echo Failed to install requirements.
