@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/NeuroSeg_App_Icon.png" width="140" alt="NeuroSeg-Pro Logo" style="margin-bottom: 15px; border-radius: 15px;" />
+
 # 🧠 NeuroSeg-Pro
 **Advanced MRI Brain Segmentation & Visualization Toolkit**
 
@@ -103,7 +105,17 @@ NeuroSeg-Pro/
 
 ---
 
-## 🤝 Contributing
+## 👥 Meet the Team & Contributors
+
+<div align="center">
+<table>
+  <tr>
+    <td align="center"><a href="https://github.com/mohany203"><img src="https://github.com/mohany203.png?v=4" width="100px;" alt="" style="border-radius:50%;"/><br /><sub><b>Mohamed Hany</b></sub></a></td>
+    <td align="center"><a href="https://github.com/ASamy10"><img src="https://github.com/ASamy10.png?v=4" width="100px;" alt="" style="border-radius:50%;"/><br /><sub><b>Ahmed Samy</b></sub></a></td>
+    <td align="center"><a href="https://github.com/Omareldash"><img src="https://github.com/Omareldash.png?v=4" width="100px;" alt="" style="border-radius:50%;"/><br /><sub><b>Omar Eldash</b></sub></a></td>
+  </tr>
+</table>
+</div>
 
 We welcome enhancements, bug fixes, and optimization tweaks to NeuroSeg-Pro! Please freely open an Issue or submit a Pull Request.
 
