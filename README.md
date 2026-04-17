@@ -101,12 +101,19 @@ NeuroSeg-Pro/
  │   ├── src/              # Deep Learning Architectures (e.g. UNet)
  │   └── train.py          # Main training execution script
  │
- ├── 📊 data_samples/         # Small MRI dataset samples for quick testing
  ├── 📦 dist/                 # Contains compiled .exe installers
  ├── ⚙️ installer.iss         # Inno Setup Windows compilation script
  ├── ⚙️ install.ps1           # Core logic for the automated setup process
  └── 📄 requirements.txt      # Python dependencies
 ```
+
+---
+
+## 🗄️ Dataset (BraTS)
+
+This project is trained and evaluated using the **Official BraTS (Brain Tumor Segmentation) Challenge Dataset**. 
+
+Due to strict data usage agreements and immense file sizes, **no MRI data is hosted in this GitHub repository**. To reproduce the research or run the training pipelines from scratch, you must request access and acquire the datasets directly from the [official providers](https://www.med.upenn.edu/cbica/brats2021/).
 
 ---
 
