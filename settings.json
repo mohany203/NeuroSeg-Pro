@@ -1,13 +1,17 @@
 {
     "theme": "Dark",
-    "font_size": 11,
+    "font_size": 10,
     "visual_quality": "High",
     "default_opacity": 0.6,
     "show_grid": true,
     "recent_files": [
         {
+            "path": "C:/Users/moham/Downloads/GRAD PROJECT TESTS/BraTS-GLI-00032-000",
+            "timestamp": "2026-02-15 04:56:27"
+        },
+        {
             "path": "C:/Users/moham/Downloads/GRAD PROJECT TESTS/BraTS-GLI-00016-000",
-            "timestamp": "2026-02-15 02:34:32"
+            "timestamp": "2026-02-15 04:23:09"
         }
     ],
     "models": [
@@ -42,7 +46,7 @@
             "path": "C:\\Users\\moham\\.gemini\\antigravity\\scratch\\Graduation_project_1\\models\\OUR GLI _Teacher_model_after_epoch_86_trainLoss_0.5955_valLoss_0.2984.pth"
         }
     ],
-    "active_model_id": "d82cf399-32ed-450c-a1cd-b4e910d2b161",
+    "active_model_id": "70c17884-ddef-43fa-91f5-cf8f5124e9c5",
     "ask_model_on_run": false,
     "sidebar_collapsed": false
 }

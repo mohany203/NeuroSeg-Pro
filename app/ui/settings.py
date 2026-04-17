@@ -2,7 +2,15 @@ import json
 import os
 import sys
 
-SETTINGS_FILE = "settings.json"
+# Define AppData Path for settings and models
+APP_DATA_DIR = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'NeuroSegPro')
+if not os.path.exists(APP_DATA_DIR):
+    try:
+        os.makedirs(APP_DATA_DIR)
+    except OSError:
+        pass
+
+SETTINGS_FILE = os.path.join(APP_DATA_DIR, "settings.json")
 
 DEFAULT_SETTINGS = {
     "theme": "Dark",
@@ -12,14 +20,8 @@ DEFAULT_SETTINGS = {
     "default_opacity": 0.6,
     "show_grid": True,
     "recent_files": [],
-    "models": [
-        {
-            "id": "default", 
-            "name": "Default (Teacher Model)", 
-            "path": "model_output/Teacher_model_after_epoch_26_trainLoss_1.3478_valLoss_0.6119.pth"
-        }
-    ],
-    "active_model_id": "default",
+    "models": [],
+    "active_model_id": None,
     "ask_model_on_run": False
 }
 
@@ -42,18 +44,48 @@ class Settings:
             except Exception as e:
                 print(f"Error loading settings: {e}")
         
+        self.validate_paths()
+        
         # Always scan for new models in 'models' folder
         self.scan_for_models()
 
-    def scan_for_models(self):
-        """Scans the 'models' directory next to the executable/script for .pth files."""
-        # Determine base path
-        if getattr(sys, 'frozen', False):
-            base_dir = os.path.dirname(sys.executable)
-        else:
-            base_dir = os.path.abspath(".")
+    def validate_paths(self):
+        """Removes ghost recent files and models that no longer exist on disk."""
+        changed = False
+        
+        # 1. Validate recent files
+        recents = self.data.get("recent_files", [])
+        valid_recents = []
+        for r in recents:
+            p = r if isinstance(r, str) else r.get("path", "")
+            if os.path.exists(p):
+                valid_recents.append(r)
+            else:
+                changed = True
+        self.data["recent_files"] = valid_recents
+
+        # 2. Validate models
+        models = self.data.get("models", [])
+        valid_models = []
+        for m in models:
+            if os.path.exists(m.get("path", "")):
+                valid_models.append(m)
+            else:
+                changed = True
+        self.data["models"] = valid_models
+
+        # 3. Validate active model ID
+        active_id = self.data.get("active_model_id")
+        if active_id and not any(m["id"] == active_id for m in valid_models):
+            self.data["active_model_id"] = valid_models[0]["id"] if valid_models else None
+            changed = True
             
-        models_dir = os.path.join(base_dir, "models")
+        if changed:
+            self.save()
+
+    def scan_for_models(self):
+        """Scans the 'models' directory inside AppData for .pth files."""
+        models_dir = os.path.join(APP_DATA_DIR, "models")
         if not os.path.exists(models_dir):
             try:
                 os.makedirs(models_dir)

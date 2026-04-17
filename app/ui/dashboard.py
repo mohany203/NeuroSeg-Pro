@@ -1,12 +1,13 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                                  QPushButton, QFrame, QFileDialog, QListWidget, QGridLayout, QScrollArea, QSizePolicy, QListWidgetItem, QGraphicsDropShadowEffect)
-from PyQt5.QtCore import Qt, pyqtSignal, QSize
-from PyQt5.QtGui import QIcon, QFont, QResizeEvent, QColor
+from PyQt5.QtCore import Qt, pyqtSignal, QSize, QPropertyAnimation, QEasingCurve, QVariantAnimation
+from PyQt5.QtGui import QIcon, QFont, QResizeEvent, QColor, QCursor
 import os
+import torch
 from app.ui.settings import Settings
 from app.ui.theme import get_theme_palette, scaled
 
-class RecentFileItemWidget(QWidget):
+class RecentFileItemWidget(QFrame):
     clicked = pyqtSignal(str)
     deleted = pyqtSignal(str)
 
@@ -16,14 +17,40 @@ class RecentFileItemWidget(QWidget):
         
         c = get_theme_palette()
         
+        self.setObjectName("RecentItem")
+        self.setStyleSheet(f"""
+            QFrame#RecentItem {{
+                background-color: transparent;
+                border-radius: {scaled(8)}px;
+                border: 1px solid transparent;
+            }}
+            QFrame#RecentItem:hover {{
+                background-color: {c['SURFACE_LIGHT']};
+                border: 1px solid {c['BORDER_HOVER']};
+            }}
+        """)
+
+        self.path = path
+        
+        c = get_theme_palette()
+        
         layout = QHBoxLayout(self)
         layout.setContentsMargins(scaled(10), scaled(5), scaled(10), scaled(5))
         layout.setSpacing(scaled(15))
         
-        # Icon
-        icon_lbl = QLabel("📄")
-        icon_lbl.setStyleSheet(f"font-size: {scaled(20)}px;")
-        layout.addWidget(icon_lbl)
+        # Icon Container
+        icon_container = QLabel("📄")
+        icon_container.setAlignment(Qt.AlignCenter)
+        icon_container.setFixedSize(scaled(36), scaled(36))
+        icon_container.setStyleSheet(f"""
+            QLabel {{
+                background-color: {c['PRIMARY_LIGHT']};
+                color: {c['PRIMARY']};
+                border-radius: {scaled(18)}px;
+                font-size: {scaled(16)}px;
+            }}
+        """)
+        layout.addWidget(icon_container)
         
         # Text Container
         text_layout = QVBoxLayout()
@@ -55,8 +82,115 @@ class RecentFileItemWidget(QWidget):
         self.clicked.emit(self.path)
         super().mousePressEvent(event)
 
+    def enterEvent(self, event):
+        self.setCursor(QCursor(Qt.PointingHandCursor))
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self.setCursor(QCursor(Qt.ArrowCursor))
+        super().leaveEvent(event)
+
     def on_delete(self):
         self.deleted.emit(self.path)
+
+
+class ActionCard(QFrame):
+    clicked = pyqtSignal()
+    
+    def __init__(self, title, desc, icon_char, accent_color, bg_color):
+        super().__init__()
+        self.setAttribute(Qt.WA_StyledBackground, True)
+        self.setObjectName("Card")
+        # Relax sizing so it can flexibly scale on different DPI screens
+        self.setMinimumSize(scaled(180), scaled(120))
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        
+        c = get_theme_palette()
+        self.default_border = c["BORDER"]
+        self.hover_border = accent_color
+        
+        # Custom stylesheet to make sure it paints backgrounds 
+        self.setStyleSheet(f"""
+            QFrame#Card {{
+                background-color: {c['SURFACE']};
+                border-radius: {scaled(16)}px;
+                border: 1px solid {self.default_border};
+            }}
+            QFrame#Card:hover {{
+                background-color: {c['SURFACE_LIGHT']};
+                border: 1px solid {self.hover_border};
+            }}
+        """)
+        
+        # Shadow Effect
+        self.shadow = QGraphicsDropShadowEffect()
+        self.shadow.setBlurRadius(scaled(20))
+        self.shadow.setColor(QColor(c["SHADOW"]))
+        self.shadow.setOffset(0, scaled(6))
+        self.setGraphicsEffect(self.shadow)
+        
+        # Inner Layout
+        l = QVBoxLayout(self)
+        l.setContentsMargins(scaled(25), scaled(25), scaled(25), scaled(25))
+        l.setSpacing(scaled(12))
+        
+        # Header Row: Icon + Arrow
+        header_lay = QHBoxLayout()
+        icon_lbl = QLabel(icon_char)
+        icon_lbl.setAlignment(Qt.AlignCenter)
+        icon_lbl.setFixedSize(scaled(50), scaled(50))
+        icon_lbl.setStyleSheet(f"""
+            QLabel {{
+                background-color: {bg_color};
+                color: {accent_color};
+                border-radius: {scaled(25)}px;
+                font-size: {scaled(26)}px;
+            }}
+        """)
+        header_lay.addWidget(icon_lbl)
+        header_lay.addStretch()
+        
+        arrow = QLabel("➔")
+        arrow.setStyleSheet(f"color: {c['TEXT_MUTED']}; font-size: {scaled(24)}px; font-weight: bold;")
+        header_lay.addWidget(arrow)
+        l.addLayout(header_lay)
+        
+        l.addSpacing(scaled(10))
+        
+        # Title
+        title_lbl = QLabel(title)
+        title_lbl.setStyleSheet(
+            f"font-size: {scaled(20)}px; font-weight: bold; color: {c['TEXT_PRIMARY']};"
+        )
+        title_lbl.setWordWrap(True)
+        l.addWidget(title_lbl)
+        
+        # Desc
+        desc_lbl = QLabel(desc)
+        desc_lbl.setStyleSheet(
+            f"font-size: {scaled(14)}px; color: {c['TEXT_SECONDARY']}; line-height: 1.5;"
+        )
+        desc_lbl.setWordWrap(True)
+        desc_lbl.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+        l.addWidget(desc_lbl)
+        l.addStretch()
+
+    def enterEvent(self, event):
+        self.setCursor(QCursor(Qt.PointingHandCursor))
+        # Animate shadow
+        self.shadow.setBlurRadius(scaled(30))
+        self.shadow.setOffset(0, scaled(10))
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self.setCursor(QCursor(Qt.ArrowCursor))
+        self.shadow.setBlurRadius(scaled(20))
+        self.shadow.setOffset(0, scaled(6))
+        super().leaveEvent(event)
+
+    def mousePressEvent(self, event):
+        self.clicked.emit()
+        super().mousePressEvent(event)
 
 
 class DashboardWidget(QWidget):
@@ -84,8 +218,11 @@ class DashboardWidget(QWidget):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(self.scroll)
 
-        # Welcome Section
+        # Welcome Section + System Status
         self.setup_header()
+        
+        # System Stats Ribbon
+        self.setup_system_stats()
         
         # Actions Grid
         self.setup_actions()
@@ -103,8 +240,9 @@ class DashboardWidget(QWidget):
         
         c = get_theme_palette()
         
-        # Welcome Title
-        title = QLabel("Welcome to NeuroSeg Pro")
+        # Welcome Title with rich HTML gradient-like color
+        title = QLabel(f"<span style='color: {c['PRIMARY']};'>Welcome to</span> NeuroSeg Pro")
+        title.setTextFormat(Qt.RichText)
         title.setStyleSheet(
             f"font-size: {scaled(36)}px; font-weight: 800; color: {c['TEXT_PRIMARY']}; letter-spacing: -0.5px;"
         )
@@ -112,7 +250,7 @@ class DashboardWidget(QWidget):
         # Subtitle with accent color
         subtitle = QLabel("Advanced Brain Tumor Segmentation & 3D Visualization")
         subtitle.setStyleSheet(
-            f"font-size: {scaled(16)}px; color: {c['TEXT_SECONDARY']}; font-weight: 500;"
+            f"font-size: {scaled(16)}px; color: {c['TEXT_SECONDARY']}; font-weight: 500; font-family: 'Segoe UI', Arial;"
         )
         
         l.addWidget(title)
@@ -120,49 +258,100 @@ class DashboardWidget(QWidget):
         
         self.layout.addWidget(header_container)
 
+    def setup_system_stats(self):
+        c = get_theme_palette()
+        
+        # We wrap it in a horizontal layout with a stretch so the background doesn't spam the whole screen width
+        wrapper_lay = QHBoxLayout()
+        wrapper_lay.setContentsMargins(0, 0, 0, 0)
+        
+        stats_container = QFrame()
+        stats_container.setAttribute(Qt.WA_StyledBackground, True)
+        stats_container.setStyleSheet(f"""
+            QFrame {{
+                background-color: {c['SURFACE']};
+                border-radius: {scaled(8)}px;
+                border: 1px solid {c['BORDER']};
+            }}
+        """)
+        sl = QHBoxLayout(stats_container)
+        sl.setContentsMargins(scaled(12), scaled(8), scaled(12), scaled(8))
+        sl.setSpacing(scaled(20))
+        
+        # Initial placeholders
+        self.stat1 = QLabel("⏳ Hardware: <b>Checking...</b>")
+        self.stat1.setStyleSheet(f"color: {c['TEXT_SECONDARY']}; font-size: {scaled(12)}px;")
+        
+        self.stat2 = QLabel("📦 Engine: <b>Loading...</b>")
+        self.stat2.setStyleSheet(f"color: {c['TEXT_SECONDARY']}; font-size: {scaled(12)}px;")
+        
+        sl.addWidget(self.stat1)
+        sl.addWidget(self.stat2)
+        
+        wrapper_lay.addWidget(stats_container)
+        wrapper_lay.addStretch()
+        
+        self.layout.addLayout(wrapper_lay)
+        
+        # Defer the deep hardware checks so we don't freeze the GUI on startup
+        from PyQt5.QtCore import QTimer
+        QTimer.singleShot(100, self.check_hardware_stats)
+
+    def check_hardware_stats(self):
+        c = get_theme_palette()
+        has_cuda = torch.cuda.is_available()
+        device_str = torch.cuda.get_device_name(0) if has_cuda else "CPU Mode"
+        icon_str = "🟢" if has_cuda else "🟡"
+        
+        self.stat1.setText(f"{icon_str} Hardware: <b>{device_str}</b>")
+        self.stat2.setText(f"📦 Engine: <b>v{torch.__version__.split('+')[0]}</b>")
+
     def setup_actions(self):
         grid_container = QWidget()
         grid = QGridLayout(grid_container)
-        grid.setSpacing(scaled(20))
+        grid.setSpacing(scaled(25))
         grid.setContentsMargins(0,0,0,0)
         
+        c = get_theme_palette()
+        
         # Load Scan Card
-        self.load_card = self.create_action_card(
+        self.load_card = ActionCard(
             "Load MRI Scan", 
             "Import a NIfTI (.nii) file to begin 3D volumetric analysis and visualization.",
-            "Open Scan",
-            lambda: self.browse_file('mri')
+            "📂", c["PRIMARY"], c["PRIMARY_LIGHT"]
         )
+        self.load_card.clicked.connect(lambda: self.browse_file('mri'))
         
         # Load Mask Card
-        self.mask_card = self.create_action_card(
+        self.mask_card = ActionCard(
             "Load Segmentation Mask", 
-            "Import a binary mask to overlay on the MRI scan for comparison.",
-            "Load Mask",
-            lambda: self.browse_file('mask')
+            "Import a binary mask to overlay on the MRI scan for accurate visual comparison.",
+            "🎭", c["SUCCESS"], "rgba(16, 185, 129, 0.15)"
         )
+        self.mask_card.clicked.connect(lambda: self.browse_file('mask'))
         
-        # Batch Process (Placeholder)
-        self.batch_card = self.create_action_card(
-            "Batch Processing", 
-            "Run segmentation on multiple files automatically (Coming Soon).",
-            "Batch Run",
-            None
-        )
-        self.batch_card.setObjectName("CardDisabled")
-        self.batch_card.setEnabled(False) 
-
         grid.addWidget(self.load_card, 0, 0)
         grid.addWidget(self.mask_card, 0, 1)
         
         # Patient Folder Card
-        self.patient_card = self.create_action_card(
+        self.patient_card = ActionCard(
             "Open Patient Folder",
-            "Load a folder containing multiple MRI modalities (T1, T2, FLAIR, T1ce).",
-            "Open Folder",
-            self.browse_folder
+            "Instantly load a structured folder containing multiple registered MRI modalities (T1, T2, FLAIR, T1ce).",
+            "📁", c["WARNING"], "rgba(245, 158, 11, 0.15)"
         )
-        grid.addWidget(self.patient_card, 1, 0, 1, 2)
+        self.patient_card.clicked.connect(self.browse_folder)
+        
+        # Batch Processing Placeholder
+        self.batch_card = ActionCard(
+            "Batch Processing",
+            "Automate segmentation across entire cohorts. (Feature Coming Soon)",
+            "⚡", c["TEXT_MUTED"], c["SURFACE_LIGHT"]
+        )
+        self.batch_card.setEnabled(False)
+        self.batch_card.setStyleSheet(f"QFrame#Card {{ opacity: 0.5; background-color: {c['SURFACE']}; }}")
+
+        grid.addWidget(self.patient_card, 1, 0)
+        grid.addWidget(self.batch_card, 1, 1)
         
         grid.setColumnStretch(0, 1)
         grid.setColumnStretch(1, 1)
@@ -170,33 +359,57 @@ class DashboardWidget(QWidget):
         self.layout.addWidget(grid_container)
 
     def setup_recent(self):
-        container = QWidget()
-        l = QVBoxLayout(container)
-        l.setContentsMargins(0, scaled(10), 0, 0)
+        c = get_theme_palette()
+        panel = QFrame()
+        panel.setObjectName("Card")
+        panel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        
+        panel.setAttribute(Qt.WA_StyledBackground, True)
+        panel.setStyleSheet(f"""
+            QFrame#Card {{
+                background-color: {c['SURFACE']};
+                border-radius: {scaled(16)}px;
+                border: 1px solid {c['BORDER']};
+            }}
+        """)
+        
+        # Add a subtle shadow
+        shadow = QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(scaled(20))
+        shadow.setColor(QColor(c["SHADOW"]))
+        shadow.setOffset(0, scaled(5))
+        panel.setGraphicsEffect(shadow)
+
+        l = QVBoxLayout(panel)
+        l.setContentsMargins(scaled(25), scaled(25), scaled(25), scaled(25))
         l.setSpacing(scaled(15))
         
-        c = get_theme_palette()
+        header_layout = QHBoxLayout()
+        icon_lbl = QLabel("🕒")
+        icon_lbl.setStyleSheet(f"font-size: {scaled(20)}px;")
         
         lbl = QLabel("Recent Files")
         lbl.setStyleSheet(
-            f"font-size: {scaled(20)}px; font-weight: bold; color: {c['TEXT_PRIMARY']}; margin-bottom: {scaled(5)}px;"
+            f"font-size: {scaled(20)}px; font-weight: bold; color: {c['TEXT_PRIMARY']};"
         )
+        
+        header_layout.addWidget(icon_lbl)
+        header_layout.addWidget(lbl)
+        header_layout.addStretch()
+        l.addLayout(header_layout)
         
         self.recent_list = QListWidget()
         self.recent_list.setMinimumHeight(scaled(150))
         self.recent_list.setMaximumHeight(scaled(300))
         self.recent_list.setObjectName("RecentList")
-        
-        # Theme-aware list styling (handled globally now by QListWidget styles in theme.py)
-        # No inline override needed — the global styles apply
+        self.recent_list.setStyleSheet(f"QListWidget {{ border: none; background: transparent; }}")
         
         self.refresh_recent_list()
         self.recent_list.itemClicked.connect(self.on_recent_clicked)
         
-        l.addWidget(lbl)
         l.addWidget(self.recent_list)
         
-        self.layout.addWidget(container)
+        self.layout.addWidget(panel)
 
     def refresh_recent_list(self):
         self.recent_list.clear()
@@ -239,66 +452,6 @@ class DashboardWidget(QWidget):
     def refresh(self):
         """Called when dashboard is shown to update dynamic content."""
         self.refresh_recent_list()
-
-    def create_action_card(self, title, desc, btn_text, callback):
-        c = get_theme_palette()
-        
-        card = QFrame()
-        card.setObjectName("Card")
-        card.setMinimumSize(scaled(280), scaled(240))
-        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        
-        # Shadow Effect
-        shadow = QGraphicsDropShadowEffect()
-        shadow.setBlurRadius(scaled(25))
-        shadow.setColor(QColor(c["SHADOW"]))
-        shadow.setOffset(0, scaled(8))
-        card.setGraphicsEffect(shadow)
-        
-        # Inner Layout
-        l = QVBoxLayout(card)
-        l.setContentsMargins(scaled(25), scaled(25), scaled(25), scaled(25))
-        l.setSpacing(scaled(15))
-        
-        # Icon
-        icon_lbl = QLabel("📂" if "Scan" in title else "🎭" if "Mask" in title else "📁" if "Folder" in title else "⚡")
-        icon_lbl.setStyleSheet(f"font-size: {scaled(32)}px;")
-        icon_lbl.setAlignment(Qt.AlignLeft)
-        
-        # Title
-        title_lbl = QLabel(title)
-        title_lbl.setStyleSheet(
-            f"font-size: {scaled(18)}px; font-weight: bold; color: {c['TEXT_PRIMARY']};"
-        )
-        title_lbl.setWordWrap(True)
-        
-        # Desc
-        desc_lbl = QLabel(desc)
-        desc_lbl.setStyleSheet(
-            f"font-size: {scaled(13)}px; color: {c['TEXT_SECONDARY']}; line-height: 1.4;"
-        )
-        desc_lbl.setWordWrap(True)
-        desc_lbl.setAlignment(Qt.AlignTop | Qt.AlignLeft)
-        
-        # Button
-        btn = QPushButton(btn_text)
-        btn.setCursor(Qt.PointingHandCursor)
-        btn.setFixedHeight(scaled(45))
-        
-        if callback:
-            btn.clicked.connect(callback)
-        else:
-            btn.setEnabled(False)
-        
-        l.addWidget(icon_lbl)
-        l.addWidget(title_lbl)
-        l.addWidget(desc_lbl)
-        l.addStretch()
-        l.addWidget(btn)
-        
-        # Card style uses global theme QSS — no inline override needed
-        
-        return card
 
     def browse_file(self, file_type):
         title = "Open MRI Scan" if file_type == 'mri' else "Open Segmentation Mask"

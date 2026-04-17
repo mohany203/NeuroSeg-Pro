@@ -2,6 +2,11 @@ import sys
 import os
 import ctypes
 
+# Dynamically add the project root to sys.path so 'app.' imports work without PYTHONPATH
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 # Fix for OMP: Error #15 (Multiple OpenMP runtimes)
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
