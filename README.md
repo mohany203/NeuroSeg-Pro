@@ -117,6 +117,21 @@ Due to strict data usage agreements and immense file sizes, **no MRI data is hos
 
 ---
 
+## 🧬 Core Model Architectures & Concepts
+
+NeuroSeg-Pro is built not just as a viewer, but as an end-to-end evaluation tool for state-of-the-art 3D Deep Learning models specialized in brain tumour segmentation.
+
+### 🧠 Methodology Highlights
+- **Fully 3D Volumetric Processing:** Uses 3D Convolutions (e.g., 3D U-Net or SwinUNETR) to capture spatial depth context across complete MRI scans, rather than processing slice-by-slice.
+- **Multi-Modal Input Fusion:** The architectures inherently ingest 4 distinct MRI modalities simultaneously: **T1, T1c (contrast), T2, and FLAIR**. This allows the models to learn complex cross-modality correlations to accurately delineate the Enhancing Tumor (ET), Tumor Core (TC), and Whole Tumor (WT).
+- **Knowledge Distillation (Teacher-Student):** 
+  To achieve real-time clinical inference without requiring a supercomputer, we utilize a Knowledge Distillation strategy. A massive, high-parameter "Teacher" model guides a lightweight, fast "Student" model during training. NeuroSeg-Pro allows you to load and visually compare both variants directly.
+- **Advanced Optimization:** Utilizing specialized loss functions like overlapping **Dice Loss** to handle extreme class imbalances inherent in micro-tumors, combined with **Cross-Entropy Loss** for stable, localized predictions.
+
+*(Implementation details, training scripts, and hyperparameter configurations will be populated inside the `research/` directory.)*
+
+---
+
 ## 👥 Meet the Team & Contributors
 
 <div align="center">
