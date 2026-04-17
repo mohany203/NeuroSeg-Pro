@@ -35,7 +35,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "models\*,.venv\*,dist\*,build\*,__pycache__\*,*.iss,*.lnk,model_output\*,settings.json,run_app_log.txt,.git\*,research\*,data_samples\*"
+Source: "*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "models\*,.venv\*,dist\*,build\*,__pycache__\*,*.iss,*.lnk,model_output\*,settings.json,run_app_log.txt,.git\*,research\*"
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
