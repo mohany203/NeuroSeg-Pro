@@ -90,17 +90,22 @@ run_app.bat
 
 ```text
 NeuroSeg-Pro/
- ├── app/                  # Main application source code
+ ├── 📱 app/                  # Main application source code (PyQt5)
  │   ├── main.py           # Application entry point
  │   ├── ui/               # Widget panels, MPR views, and themes
- │   └── core/             # Model inference logic, NIfTI image processing
- ├── assets/               # Application icons and branding assets
- ├── models/               # (Git Ignored) Place your `.pth` weights here
- ├── model_output/         # Saved outputs from predictions
- ├── dist/                 # Contains compiled .exe installer
- ├── installer.iss         # Inno Setup compilation script
- ├── install.ps1           # Core logic for the automated setup process
- └── requirements.txt      # Python dependencies
+ │   └── core/             # Model inference logic, NIfTI processing
+ │
+ ├── 🔬 research/             # Machine Learning & Model Training Environment
+ │   ├── notebooks/        # Jupyter notebooks for EDA and evaluation
+ │   ├── preprocessing/    # Data cleaning and pipeline scripts
+ │   ├── src/              # Deep Learning Architectures (e.g. UNet)
+ │   └── train.py          # Main training execution script
+ │
+ ├── 📊 data_samples/         # Small MRI dataset samples for quick testing
+ ├── 📦 dist/                 # Contains compiled .exe installers
+ ├── ⚙️ installer.iss         # Inno Setup Windows compilation script
+ ├── ⚙️ install.ps1           # Core logic for the automated setup process
+ └── 📄 requirements.txt      # Python dependencies
 ```
 
 ---
