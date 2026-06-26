@@ -60,6 +60,11 @@ class ModelCard(QFrame):
             btn_def.clicked.connect(lambda: self.manager.set_default(model_data["id"]))
             layout.addWidget(btn_def)
             
+        btn_rename = QPushButton("Rename")
+        btn_rename.setCursor(Qt.PointingHandCursor)
+        btn_rename.clicked.connect(lambda: self.manager.rename_model_ui(model_data))
+        layout.addWidget(btn_rename)
+            
         btn_del = QPushButton("Delete")
         btn_del.setCursor(Qt.PointingHandCursor)
         btn_del.setStyleSheet("QPushButton { background: rgba(229, 62, 62, 0.2); color: #fc8181; } QPushButton:hover { background: rgba(229, 62, 62, 0.4); }")
@@ -185,13 +190,20 @@ class ModelManagerWidget(QWidget):
                 except Exception as e:
                      QMessageBox.critical(self, "Error", f"Failed to import model: {e}")
 
+    def rename_model_ui(self, model_data):
+        new_name, ok = QInputDialog.getText(self, "Rename Model", "Enter new display name:", text=model_data["name"])
+        if ok and new_name and new_name != model_data["name"]:
+            self.settings.rename_model(model_data["id"], new_name)
+            self.refresh_list()
+            self.models_changed.emit()
+
     def delete_model(self, model_data):
         confirm = QMessageBox.question(self, "Confirm Delete", 
-                                       f"Are you sure you want to remove '{model_data['name']}'?",
+                                       f"Are you sure you want to permanently delete '{model_data['name']}' and remove its physical model file from the folder?",
                                        QMessageBox.Yes | QMessageBox.No)
         
         if confirm == QMessageBox.Yes:
-            if self.settings.remove_model(model_data['id']):
+            if self.settings.remove_model(model_data['id'], delete_disk_file=True):
                 self.refresh_list()
                 self.models_changed.emit()
 

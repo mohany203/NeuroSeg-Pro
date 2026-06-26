@@ -1,135 +1,141 @@
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, 
-                                 QPushButton, QLabel, QFrame, QStackedWidget, QApplication)
+                               QPushButton, QLabel, QFrame, QStackedWidget, QApplication, QFileDialog, QDialog)
 from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QFont
 from app.ui.dashboard import DashboardWidget
 from app.ui.viewer_widget import ViewerWidget
 from app.ui.settings_widget import SettingsWidget
 from app.ui.theme import apply_theme, get_theme_palette, scaled
 from app.core.loader import NiftiLoader
-
 from app.ui.settings import Settings
+import os
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.settings = Settings()
-        self.sidebar_expanded_width = scaled(220)
-        self.sidebar_collapsed_width = scaled(60)
-        self.sidebar_collapsed = bool(self.settings.get("sidebar_collapsed") or False)
-        self.setWindowTitle("Brain Tumor Segmentation Pro")
-        self.resize(scaled(1280), scaled(850))
+        self.setWindowTitle("NeuroSeg-Pro Volumetric Clinical Platform")
+        self.resize(scaled(1380), scaled(900))
         
-        # Central Widget
+        # Central Container
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
-        self.main_layout = QHBoxLayout(self.central_widget)
+        self.main_layout = QVBoxLayout(self.central_widget)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)
         
-        # Sidebar
-        self.setup_sidebar()
-        
-        # Right Side Container (VBox: Header | Content Area)
-        self.right_container = QWidget()
-        self.right_layout = QVBoxLayout(self.right_container)
-        self.right_layout.setContentsMargins(0, 0, 0, 0)
-        self.right_layout.setSpacing(0)
-        
-        # Top Header
+        # Top Header Strip
         self.setup_header()
         
-        # Apply sidebar state AFTER both sidebar and header are created
-        self.apply_sidebar_state()
-        
-        # Content Area
+        # Content Area Stack
         self.content_area = QStackedWidget()
-        self.right_layout.addWidget(self.content_area)
+        self.main_layout.addWidget(self.content_area)
         
-        self.main_layout.addWidget(self.right_container)
-        
-        # Add Pages
+        # Pages
         self.dashboard_page = DashboardWidget()
         self.viewer_page = ViewerWidget()
-        self.settings_page = SettingsWidget()
         
-        self.content_area.addWidget(self.dashboard_page)
-        self.content_area.addWidget(self.viewer_page)
-        self.content_area.addWidget(self.settings_page)
+        self.content_area.addWidget(self.dashboard_page) # Index 0
+        self.content_area.addWidget(self.viewer_page)    # Index 1
         
         # Signal Connections
         self.dashboard_page.file_loaded.connect(self.on_file_loaded)
         self.dashboard_page.recent_file_clicked.connect(self.on_recent_file_clicked)
-        self.settings_page.settings_saved.connect(self.refresh_theme)
-        self.settings_page.models_changed.connect(self.viewer_page.populate_models)
         
-        # Default Logic
-        self.current_page_index = 0
-
-    def _header_toggle_style(self):
-        c = get_theme_palette()
-        fs = scaled(24)
-        return f"""
-            QPushButton {{
-                background: transparent; 
-                border: none; 
-                font-size: {fs}px; 
-                color: {c["PRIMARY"]};
-            }}
-            QPushButton:hover {{ 
-                background: {c["SURFACE_LIGHT"]}; 
-                border-radius: {scaled(8)}px; 
-            }}
-        """
+        # Land directly on the 3D Viewer page (Index 1) to match professional clinical workflow
+        self.content_area.setCurrentIndex(1)
+        self.refresh_theme()
 
     def setup_header(self):
         c = get_theme_palette()
         self.header_frame = QFrame()
-        self.header_frame.setFixedHeight(scaled(50))
+        self.header_frame.setFixedHeight(scaled(54))
         self.header_frame.setStyleSheet(f"background-color: {c['HEADER_BG']}; border-bottom: 1px solid {c['BORDER']};") 
+        
         hl = QHBoxLayout(self.header_frame)
-        hl.setContentsMargins(scaled(10), 0, scaled(10), 0)
+        hl.setContentsMargins(scaled(16), 0, scaled(16), 0)
+        hl.setSpacing(scaled(10))
         
-        # Sidebar Toggle Button
-        self.btn_toggle_sidebar = QPushButton("☰")
-        self.btn_toggle_sidebar.setFixedSize(scaled(40), scaled(40))
-        self.btn_toggle_sidebar.setCursor(Qt.PointingHandCursor)
-        self.btn_toggle_sidebar.setToolTip("Toggle Sidebar")
-        self.btn_toggle_sidebar.clicked.connect(self.toggle_sidebar)
-        self.btn_toggle_sidebar.setStyleSheet(self._header_toggle_style())
+        # Title Logo
+        self.logo_label = QLabel("🧠  NeuroSeg-Pro")
+        self.logo_label.setStyleSheet(f"font-size: {scaled(20)}px; font-weight: 800; color: {c['PRIMARY']}; letter-spacing: 0.5px;")
+        hl.addWidget(self.logo_label)
         
-        hl.addWidget(self.btn_toggle_sidebar)
         hl.addStretch()
         
-        self.right_layout.addWidget(self.header_frame)
+        # Header Action Buttons
+        btn_open = self._create_header_btn("📂 Open Study", self.open_study_dialog, c)
+        hl.addWidget(btn_open)
+        
+        btn_export = self._create_header_btn("📄 Export Report", lambda: self.viewer_page.export_mask(), c)
+        hl.addWidget(btn_export)
+        
+        btn_settings = self._create_header_btn("⚙️ Settings", self.show_settings_modal, c)
+        hl.addWidget(btn_settings)
+        
+        btn_help = self._create_header_btn("❓ Help", self.show_tutorial, c)
+        hl.addWidget(btn_help)
+        
+        btn_about = self._create_header_btn("ℹ️ About", self.show_about_dialog, c)
+        hl.addWidget(btn_about)
+        
+        self.main_layout.addWidget(self.header_frame)
 
-    def toggle_sidebar(self):
-        self.sidebar_collapsed = not self.sidebar_collapsed
-        self.settings.set("sidebar_collapsed", self.sidebar_collapsed)
-        self.apply_sidebar_state()
+    def _create_header_btn(self, text, callback, c):
+        btn = QPushButton(text)
+        btn.setCursor(Qt.PointingHandCursor)
+        btn.setFixedHeight(scaled(34))
+        btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {c['SURFACE']};
+                color: {c['TEXT_PRIMARY']};
+                border: 1px solid {c['BORDER']};
+                border-radius: {scaled(6)}px;
+                padding: {scaled(4)}px {scaled(14)}px;
+                font-weight: 600;
+                font-size: {scaled(13)}px;
+            }}
+            QPushButton:hover {{
+                background-color: {c['SURFACE_LIGHT']};
+                border-color: {c['PRIMARY']};
+                color: {c['PRIMARY']};
+            }}
+        """)
+        btn.clicked.connect(callback)
+        return btn
 
-    def apply_sidebar_state(self):
-        if self.sidebar_collapsed:
-            self.sidebar.setFixedWidth(self.sidebar_collapsed_width)
-            if hasattr(self, 'title_label'):
-                self.title_label.setVisible(False)
-            if hasattr(self, 'btn_toggle_sidebar'):
-                self.btn_toggle_sidebar.setText("☷")
-            for btn in [self.btn_dashboard, self.btn_viewer, self.btn_help, self.btn_settings]:
-                btn.setText("")
-                btn.setToolTip(btn.property("full_text"))
-        else:
-            self.sidebar.setFixedWidth(self.sidebar_expanded_width)
-            if hasattr(self, 'title_label'):
-                self.title_label.setVisible(True)
-            if hasattr(self, 'btn_toggle_sidebar'):
-                self.btn_toggle_sidebar.setText("☰")
-            for btn in [self.btn_dashboard, self.btn_viewer, self.btn_help, self.btn_settings]:
-                btn.setText(btn.property("full_text"))
-                btn.setToolTip("")
+    def open_study_dialog(self):
+        folder = QFileDialog.getExistingDirectory(self, "Select NIfTI Patient Folder")
+        if folder:
+            self.on_file_loaded(folder, 'folder')
+
+    def show_settings_modal(self):
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Preferences & AI Models")
+        dlg.resize(scaled(900), scaled(700))
+        c = get_theme_palette()
+        dlg.setStyleSheet(f"background-color: {c['BACKGROUND']};")
+        l = QVBoxLayout(dlg)
+        l.setContentsMargins(0, 0, 0, 0)
+        
+        sw = SettingsWidget()
+        sw.settings_saved.connect(self.refresh_theme)
+        sw.models_changed.connect(self.viewer_page.populate_models)
+        sw.settings_saved.connect(dlg.accept)
+        l.addWidget(sw)
+        dlg.exec_()
+
+    def show_tutorial(self):
+        from app.ui.tutorial_dialog import TutorialDialog
+        dlg = TutorialDialog(self)
+        dlg.exec_()
+
+    def show_about_dialog(self):
+        from app.ui.about_dialog import AboutDialog
+        dlg = AboutDialog(self)
+        dlg.exec_()
 
     def on_recent_file_clicked(self, file_path):
-        import os
         file_type = 'folder' if os.path.isdir(file_path) else 'mri'
         self.on_file_loaded(file_path, file_type)
 
@@ -146,90 +152,20 @@ class MainWindow(QMainWindow):
                 is_mask = (file_type == 'mask')
                 self.viewer_page.load_data(data, affine, is_mask=is_mask)
             
-            self.switch_page(1)
+            self.content_area.setCurrentIndex(1)
         except Exception as e:
             print(f"Error loading file: {e}")
             from PyQt5.QtWidgets import QMessageBox
             QMessageBox.critical(self, "Load Error", f"Could not load data:\n{e}")
 
     def refresh_theme(self):
-        """Re-applies the theme to the entire application and updates widgets."""
         app = QApplication.instance()
         from app.ui.theme import get_dpi_scale
         apply_theme(app, dpi_scale=get_dpi_scale())
         self.viewer_page.refresh_theme()
         
-        # Update dynamic inline styles
         c = get_theme_palette()
-        self.btn_toggle_sidebar.setStyleSheet(self._header_toggle_style())
-        self.header_frame.setStyleSheet(f"background-color: {c['HEADER_BG']}; border-bottom: 1px solid {c['BORDER']};")
-        
-        if hasattr(self, 'title_label'):
-            self.title_label.setStyleSheet(
-                f"font-size: {scaled(26)}px; font-weight: bold; color: {c['PRIMARY']}; letter-spacing: 2px;"
-            )
-
-    def setup_sidebar(self):
-        c = get_theme_palette()
-        
-        self.sidebar = QFrame()
-        self.sidebar.setObjectName("Sidebar")
-        self.sidebar.setFixedWidth(self.sidebar_expanded_width)
-        
-        self.sidebar_layout = QVBoxLayout(self.sidebar)
-        self.sidebar_layout.setContentsMargins(scaled(14), scaled(30), scaled(14), scaled(14))
-        self.sidebar_layout.setSpacing(scaled(6))
-        
-        # App Title
-        self.title_label = QLabel("NEURO SEG")
-        self.title_label.setStyleSheet(
-            f"font-size: {scaled(22)}px; font-weight: bold; color: {c['PRIMARY']}; letter-spacing: 1px;"
-        )
-        self.title_label.setAlignment(Qt.AlignCenter)
-        self.sidebar_layout.addWidget(self.title_label)
-        
-        self.sidebar_layout.addSpacing(scaled(20))
-        
-        # Navigation Buttons
-        self.btn_dashboard = self.create_nav_button("Dashboard", "home")
-        self.btn_viewer = self.create_nav_button("3D Viewer", "view_in_ar")
-        self.btn_settings = self.create_nav_button("Settings", "settings")
-        self.btn_help = self.create_nav_button("Tutorial", "help_outline")
-        
-        self.sidebar_layout.addWidget(self.btn_dashboard)
-        self.sidebar_layout.addWidget(self.btn_viewer)
-        self.sidebar_layout.addStretch()
-        self.sidebar_layout.addWidget(self.btn_help)
-        self.sidebar_layout.addWidget(self.btn_settings)
-        
-        self.main_layout.addWidget(self.sidebar)
-        
-        # Connections
-        self.btn_dashboard.clicked.connect(lambda: self.switch_page(0))
-        self.btn_viewer.clicked.connect(lambda: self.switch_page(1))
-        self.btn_settings.clicked.connect(lambda: self.switch_page(2))
-        self.btn_help.clicked.connect(self.show_tutorial)
-
-    def show_tutorial(self):
-        from app.ui.tutorial_dialog import TutorialDialog
-        dlg = TutorialDialog(self)
-        dlg.exec_()
-
-    def create_nav_button(self, text, icon_name=None):
-        btn = QPushButton(text)
-        btn.setProperty("full_text", text)
-        btn.setCheckable(True)
-        btn.setFixedHeight(scaled(42))
-        btn.setCursor(Qt.PointingHandCursor)
-        btn.setObjectName("NavButton") 
-        return btn
-
-    def switch_page(self, index):
-        self.content_area.setCurrentIndex(index)
-        
-        if index == 0:
-            self.dashboard_page.refresh()
-        
-        self.btn_dashboard.setChecked(index == 0)
-        self.btn_viewer.setChecked(index == 1)
-        self.btn_settings.setChecked(index == 2)
+        if hasattr(self, 'header_frame'):
+            self.header_frame.setStyleSheet(f"background-color: {c['HEADER_BG']}; border-bottom: 1px solid {c['BORDER']};")
+        if hasattr(self, 'logo_label'):
+            self.logo_label.setStyleSheet(f"font-size: {scaled(20)}px; font-weight: 800; color: {c['PRIMARY']}; letter-spacing: 0.5px;")

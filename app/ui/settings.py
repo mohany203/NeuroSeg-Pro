@@ -96,8 +96,8 @@ class Settings:
             for f in os.listdir(models_dir):
                 if f.endswith(".pth"):
                     full_path = os.path.join(models_dir, f)
-                    # Check if already registered
-                    existing = [m for m in self.data.get("models", []) if os.path.normpath(m["path"]) == os.path.normpath(full_path)]
+                    # Check if already registered (case insensitive normalization for Windows)
+                    existing = [m for m in self.data.get("models", []) if os.path.normpath(m["path"]).lower() == os.path.normpath(full_path).lower()]
                     if not existing:
                         self.add_model(name=f, path=full_path)
 
@@ -165,11 +165,27 @@ class Settings:
         self.save()
         return new_model
 
-    def remove_model(self, model_id):
-        """Removes a model by ID."""
+    def rename_model(self, model_id, new_name):
         models = self.data.get("models", [])
+        for m in models:
+            if m["id"] == model_id:
+                m["name"] = new_name
+                break
+        self.save()
+        return True
+
+    def remove_model(self, model_id, delete_disk_file=False):
+        """Removes a model by ID and optionally deletes from disk."""
+        models = self.data.get("models", [])
+        target = next((m for m in models if m["id"] == model_id), None)
         models = [m for m in models if m["id"] != model_id]
         self.data["models"] = models
+        
+        if delete_disk_file and target and os.path.exists(target.get("path", "")):
+            try:
+                os.remove(target["path"])
+            except Exception as e:
+                print(f"Could not delete physical model file: {e}")
         
         # Reset active if deleted
         if self.data.get("active_model_id") == model_id:
