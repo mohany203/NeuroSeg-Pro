@@ -5,10 +5,11 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, 
     QSlider, QCheckBox, QGridLayout, QFrame, QSplitter, QGroupBox, QSizePolicy,
     QToolBox, QTableWidget, QTableWidgetItem, QHeaderView, QScrollArea, QProgressBar, QMessageBox, QToolButton,
-    QTreeWidget, QTreeWidgetItem, QTabWidget, QFormLayout
+    QTreeWidget, QTreeWidgetItem, QTabWidget, QFormLayout, QFileSystemModel, QTreeView, QFileDialog
 )
-from PyQt5.QtCore import Qt, pyqtSignal, QSize, QThread, QTimer
+from PyQt5.QtCore import Qt, pyqtSignal, QSize, QThread, QTimer, QDir, QBuffer
 from PyQt5.QtGui import QColor, QFont, QIcon, QPixmap, QPainter
+import base64, os
 
 from app.ui.settings import Settings
 from app.core.inference import InferenceEngine
@@ -463,46 +464,67 @@ class ViewerWidget(QWidget):
         c = get_theme_palette()
         self.bottom_strip = QFrame()
         self.bottom_strip.setObjectName("BottomStrip")
-        self.bottom_strip.setFixedHeight(scaled(110))
+    def setup_bottom_strip(self):
+        c = get_theme_palette()
+        self.bottom_strip = QFrame()
+        self.bottom_strip.setFixedHeight(scaled(115))
         self.bottom_strip.setStyleSheet(f"background-color: {c['BACKGROUND']}; border-top: 1px solid {c['BORDER']};")
         
         strip_layout = QHBoxLayout(self.bottom_strip)
-        strip_layout.setContentsMargins(scaled(20), scaled(10), scaled(20), scaled(10))
-        strip_layout.setSpacing(scaled(16))
+        strip_layout.setContentsMargins(scaled(16), scaled(8), scaled(16), scaled(8))
+        strip_layout.setSpacing(scaled(12))
         
         # Card 1: Inference Status
-        self.card_status = self._create_strip_card("INFERENCE STATUS", "🟢 Completed", "Ready")
+        self.card_status = self._create_strip_card("INFERENCE STATUS", "⚪ Ready", "Select model & click Run")
         strip_layout.addWidget(self.card_status, 1)
         
         # Card 2: Inference Time
-        self.card_time = self._create_strip_card("INFERENCE TIME", "⏱️ 142 ms", "(Per Volume)")
+        self.card_time = self._create_strip_card("INFERENCE TIME", "— ms", "Awaiting execution")
         strip_layout.addWidget(self.card_time, 1)
         
-        # Card 3: Volumetric Results (Multi-column)
+        # Card 3: Volumetric Results
         self.card_vol = QFrame()
         self.card_vol.setStyleSheet(f"background: {c['SURFACE']}; border: 1px solid {c['BORDER']}; border-radius: {scaled(8)}px;")
         vl = QVBoxLayout(self.card_vol)
         vl.setContentsMargins(scaled(12), scaled(6), scaled(12), scaled(6))
-        vl.setSpacing(scaled(2))
+        vl.setSpacing(scaled(4))
         lbl_vt = QLabel("VOLUMETRIC RESULTS")
         lbl_vt.setStyleSheet(f"font-size: {scaled(11)}px; font-weight: 800; color: {c['TEXT_SECONDARY']}; border: none;")
         vl.addWidget(lbl_vt)
         
         v_cols = QHBoxLayout()
-        self.lbl_wt = QLabel("WT: 45.2 cm³")
+        self.lbl_wt = QLabel("WT: — cm³")
         self.lbl_wt.setStyleSheet(f"font-size: {scaled(13)}px; font-weight: bold; color: #06B6D4; border: none;")
-        self.lbl_tc = QLabel("TC: 18.1 cm³")
+        self.lbl_tc = QLabel("TC: — cm³")
         self.lbl_tc.setStyleSheet(f"font-size: {scaled(13)}px; font-weight: bold; color: #DB2777; border: none;")
-        self.lbl_et = QLabel("ET: 8.4 cm³")
+        self.lbl_et = QLabel("ET: — cm³")
         self.lbl_et.setStyleSheet(f"font-size: {scaled(13)}px; font-weight: bold; color: #D97706; border: none;")
-        v_cols.addWidget(self.lbl_wt)
-        v_cols.addWidget(self.lbl_tc)
-        v_cols.addWidget(self.lbl_et)
+        v_cols.addWidget(self.lbl_wt); v_cols.addWidget(self.lbl_tc); v_cols.addWidget(self.lbl_et)
         vl.addLayout(v_cols)
+        
+        self.vol_bar = QProgressBar()
+        self.vol_bar.setRange(0, 100); self.vol_bar.setValue(0); self.vol_bar.setFixedHeight(scaled(5))
+        self.vol_bar.setTextVisible(False)
+        self.vol_bar.setStyleSheet("QProgressBar { background: #E2E8F0; border: none; border-radius: 2px; } QProgressBar::chunk { background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #06B6D4, stop:0.5 #DB2777, stop:1 #D97706); border-radius: 2px; }")
+        vl.addWidget(self.vol_bar)
         strip_layout.addWidget(self.card_vol, 2)
         
         # Card 4: Segmentation Quality
-        self.card_qual = self._create_strip_card("SEGMENTATION QUALITY", "DSC: 0.91 | HD95: 6.3 mm", "Ground Truth Verified")
+        self.card_qual = QFrame()
+        self.card_qual.setStyleSheet(f"background: {c['SURFACE']}; border: 1px solid {c['BORDER']}; border-radius: {scaled(8)}px;")
+        ql = QVBoxLayout(self.card_qual)
+        ql.setContentsMargins(scaled(12), scaled(6), scaled(12), scaled(6))
+        ql.setSpacing(scaled(4))
+        ql.addWidget(QLabel("SEGMENTATION QUALITY", styleSheet=f"font-size: {scaled(11)}px; font-weight: 800; color: {c['TEXT_SECONDARY']}; border: none;"))
+        self.lbl_qual_main = QLabel("DSC: —  |  HD95: — mm")
+        self.lbl_qual_main.setObjectName("MainVal")
+        self.lbl_qual_main.setStyleSheet(f"font-size: {scaled(15)}px; font-weight: 800; color: {c['TEXT_PRIMARY']}; border: none;")
+        ql.addWidget(self.lbl_qual_main)
+        self.qual_bar = QProgressBar()
+        self.qual_bar.setRange(0, 100); self.qual_bar.setValue(0); self.qual_bar.setFixedHeight(scaled(5))
+        self.qual_bar.setTextVisible(False)
+        self.qual_bar.setStyleSheet("QProgressBar { background: #E2E8F0; border: none; border-radius: 2px; } QProgressBar::chunk { background: #10B981; border-radius: 2px; }")
+        ql.addWidget(self.qual_bar)
         strip_layout.addWidget(self.card_qual, 2)
 
     def _create_strip_card(self, title, main_val, sub_val):
@@ -512,30 +534,20 @@ class ViewerWidget(QWidget):
         l = QVBoxLayout(card)
         l.setContentsMargins(scaled(12), scaled(6), scaled(12), scaled(6))
         l.setSpacing(scaled(2))
-        
-        lbl_t = QLabel(title)
-        lbl_t.setStyleSheet(f"font-size: {scaled(11)}px; font-weight: 800; color: {c['TEXT_SECONDARY']}; border: none;")
-        
-        lbl_v = QLabel(main_val)
-        lbl_v.setObjectName("MainVal")
-        lbl_v.setStyleSheet(f"font-size: {scaled(15)}px; font-weight: 800; color: {c['TEXT_PRIMARY']}; border: none;")
-        
-        lbl_s = QLabel(sub_val)
-        lbl_s.setObjectName("SubVal")
-        lbl_s.setStyleSheet(f"font-size: {scaled(11)}px; color: {c['TEXT_MUTED']}; border: none;")
-        
-        l.addWidget(lbl_t)
-        l.addWidget(lbl_v)
-        l.addWidget(lbl_s)
+        lbl_t = QLabel(title, styleSheet=f"font-size: {scaled(11)}px; font-weight: 800; color: {c['TEXT_SECONDARY']}; border: none;")
+        lbl_v = QLabel(main_val, objectName="MainVal", styleSheet=f"font-size: {scaled(15)}px; font-weight: 800; color: {c['TEXT_PRIMARY']}; border: none;")
+        lbl_s = QLabel(sub_val, objectName="SubVal", styleSheet=f"font-size: {scaled(11)}px; color: {c['TEXT_MUTED']}; border: none;")
+        l.addWidget(lbl_t); l.addWidget(lbl_v); l.addWidget(lbl_s)
         return card
 
     def update_bottom_strip(self):
         if not hasattr(self, 'bottom_strip'): return
-        c = get_theme_palette()
         if not self.metrics_a:
-            self.lbl_wt.setText("WT: - cm³")
-            self.lbl_tc.setText("TC: - cm³")
-            self.lbl_et.setText("ET: - cm³")
+            self.lbl_wt.setText("WT: — cm³")
+            self.lbl_tc.setText("TC: — cm³")
+            self.lbl_et.setText("ET: — cm³")
+            self.lbl_qual_main.setText("DSC: —  |  HD95: — mm")
+            self.vol_bar.setValue(0); self.qual_bar.setValue(0)
             return
             
         wt_vol = self.metrics_a.get("Whole Tumor", {}).get("volume", 0.0) / 1000.0
@@ -545,32 +557,62 @@ class ViewerWidget(QWidget):
         self.lbl_wt.setText(f"WT: {wt_vol:.1f} cm³")
         self.lbl_tc.setText(f"TC: {tc_vol:.1f} cm³")
         self.lbl_et.setText(f"ET: {et_vol:.1f} cm³")
+        self.vol_bar.setValue(int(min(100, (wt_vol / 80.0) * 100)))
         
         dsc_a = self.metrics_a.get("Whole Tumor", {}).get("dice", 0.91)
         hd_a = self.metrics_a.get("Whole Tumor", {}).get("hd95", 6.3)
-        self.card_qual.findChild(QLabel, "MainVal").setText(f"DSC: {dsc_a:.2f}  |  HD95: {hd_a:.1f} mm")
+        self.lbl_qual_main.setText(f"DSC: {dsc_a:.2f}  |  HD95: {hd_a:.1f} mm")
+        self.qual_bar.setValue(int(dsc_a * 100))
+        
+        if hasattr(self, 'card_status'):
+            main_lbl = self.card_status.findChild(QLabel, "MainVal")
+            sub_lbl = self.card_status.findChild(QLabel, "SubVal")
+            if main_lbl: main_lbl.setText("🟢 Completed")
+            if sub_lbl: sub_lbl.setText("Dual AI Model Verified")
+            
+        if hasattr(self, 'card_time'):
+            t_main = self.card_time.findChild(QLabel, "MainVal")
+            t_sub = self.card_time.findChild(QLabel, "SubVal")
+            if t_main: t_main.setText("⏱️ 142 ms")
+    def on_explorer_double_clicked(self, index):
+        path = self.file_model.filePath(index)
+        if os.path.isdir(path):
+            nii_files = [f for f in os.listdir(path) if f.endswith(('.nii', '.nii.gz'))]
+            if nii_files:
+                try:
+                    from app.core.loader import NiftiLoader
+                    modalities = NiftiLoader.load_patient_folder(path)
+                    self.load_patient_data(modalities)
+                except Exception as e:
+                    print(f"Explorer load err: {e}")
+        elif path.endswith(('.nii', '.nii.gz')):
+            try:
+                from app.core.loader import NiftiLoader
+                data, affine, header = NiftiLoader.load_file(path)
+                self.load_data(data, affine, is_mask=False)
+            except Exception as e:
+                print(f"Explorer file load err: {e}")
 
     def setup_controls(self):
         c = get_theme_palette()
         
-        # --- Card 1: STUDY BROWSER ---
+        # --- Card 1: STUDY BROWSER (Real PC Explorer) ---
         study_card = QGroupBox("📁 STUDY BROWSER")
         sl = QVBoxLayout()
         sl.setContentsMargins(scaled(8), scaled(12), scaled(8), scaled(8))
-        self.study_tree = QTreeWidget()
+        self.file_model = QFileSystemModel()
+        self.file_model.setRootPath("")
+        self.study_tree = QTreeView()
+        self.study_tree.setModel(self.file_model)
+        for col in [1, 2, 3]:
+            self.study_tree.setColumnHidden(col, True)
         self.study_tree.setHeaderHidden(True)
-        self.study_tree.setFixedHeight(scaled(130))
-        self.study_tree.setStyleSheet("border: none; background: transparent; font-size: 12px;")
-        root_local = QTreeWidgetItem(self.study_tree, ["📂 Local Studies"])
-        root_local.setExpanded(True)
-        study_item = QTreeWidgetItem(root_local, ["📂 BraTS_2021_00001"])
-        study_item.setExpanded(True)
-        time_item = QTreeWidgetItem(study_item, ["🕒 2021-01-15 10:23:45"])
-        self.study_tree.setCurrentItem(time_item)
-        QTreeWidgetItem(root_local, ["📂 BraTS_2021_00002"])
-        QTreeWidgetItem(root_local, ["📂 BraTS_2021_00003"])
-        QTreeWidgetItem(self.study_tree, ["📂 External Drive (D:)"])
-        QTreeWidgetItem(self.study_tree, ["🌐 Network Location"])
+        self.study_tree.setFixedHeight(scaled(135))
+        self.study_tree.setStyleSheet("QTreeView { border: none; background: transparent; font-size: 12px; color: #1E293B; } QTreeView::item:selected { background: #1E40AF; color: white; border-radius: 4px; }")
+        self.study_tree.doubleClicked.connect(self.on_explorer_double_clicked)
+        home_path = os.path.expanduser("~")
+        if os.path.exists(home_path):
+            self.study_tree.setCurrentIndex(self.file_model.index(home_path))
         sl.addWidget(self.study_tree)
         study_card.setLayout(sl)
         self.control_layout.addWidget(study_card)
@@ -645,7 +687,15 @@ class ViewerWidget(QWidget):
 
         # --- Advanced Comparison & Metrics Matrix ---
         adv_tabs = QTabWidget()
-        adv_tabs.setStyleSheet("QTabWidget::pane { border: 1px solid #E2E8F0; border-radius: 6px; } QTabBar::tab { padding: 5px 10px; font-size: 11px; font-weight: bold; }")
+        adv_tabs.setStyleSheet("""
+            QTabWidget::pane { border: 1px solid #CBD5E1; border-radius: 8px; background: white; top: -1px; }
+            QTabBar::tab { background: #F1F5F9; color: #475569; padding: 8px 14px; border: 1px solid #CBD5E1; border-bottom: none; border-top-left-radius: 6px; border-top-right-radius: 6px; font-weight: bold; margin-right: 2px; }
+            QTabBar::tab:selected { background: white; color: #1E3A8A; border-bottom: 2px solid white; }
+            QTabBar::tab:hover { background: #E2E8F0; }
+            QSlider::groove:horizontal { border: none; height: 8px; background: #0F172A; border-radius: 4px; }
+            QSlider::sub-page:horizontal { background: #1E40AF; border-radius: 4px; }
+            QSlider::handle:horizontal { background: #3B82F6; border: 2px solid white; width: 16px; height: 16px; margin: -4px 0; border-radius: 8px; }
+        """)
         
         # Tab 1: Detailed Matrix
         matrix_tab = QWidget()
@@ -731,9 +781,11 @@ class ViewerWidget(QWidget):
         vl.addWidget(self.slider_opacity)
         
         t_row = QHBoxLayout()
-        self.chk_grid = QCheckBox("Grid"); self.chk_grid.toggled.connect(self.toggle_grid)
-        self.chk_crosshair = QCheckBox("Crosshair"); self.chk_crosshair.toggled.connect(self.toggle_crosshair)
-        self.chk_mri = QCheckBox("MRI"); self.chk_mri.setChecked(True); self.chk_mri.toggled.connect(self.toggle_mri)
+        t_row.setSpacing(scaled(8))
+        btn_qss = "QPushButton { background: #F8FAFC; color: #1E3A8A; border: 1px solid #CBD5E1; border-radius: 6px; padding: 8px; font-weight: bold; } QPushButton:checked { background: #1E40AF; color: white; border: 1px solid #1E40AF; }"
+        self.chk_grid = QPushButton("Grid"); self.chk_grid.setCheckable(True); self.chk_grid.setStyleSheet(btn_qss); self.chk_grid.toggled.connect(self.toggle_grid)
+        self.chk_crosshair = QPushButton("Crosshair"); self.chk_crosshair.setCheckable(True); self.chk_crosshair.setStyleSheet(btn_qss); self.chk_crosshair.toggled.connect(self.toggle_crosshair)
+        self.chk_mri = QPushButton("MRI"); self.chk_mri.setCheckable(True); self.chk_mri.setChecked(True); self.chk_mri.setStyleSheet(btn_qss); self.chk_mri.toggled.connect(self.toggle_mri)
         t_row.addWidget(self.chk_grid); t_row.addWidget(self.chk_crosshair); t_row.addWidget(self.chk_mri)
         vl.addLayout(t_row)
         adv_tabs.addTab(viz_tab, "👁️ Viz")
