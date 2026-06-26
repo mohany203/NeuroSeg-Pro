@@ -744,10 +744,12 @@ class ViewerWidget(QWidget):
         # Tab 2: Compare & Viz
         viz_tab = QWidget()
         vl = QVBoxLayout(viz_tab)
-        vl.setContentsMargins(scaled(6), scaled(6), scaled(6), scaled(6))
+        vl.setSpacing(scaled(6))
+        vl.setContentsMargins(scaled(8), scaled(8), scaled(8), scaled(8))
         
         self.btn_compare = QPushButton("↔ Compare Viewports")
         self.btn_compare.setCheckable(True)
+        self.btn_compare.setStyleSheet("QPushButton { background: #2563EB; color: white; border: none; border-radius: 6px; padding: 8px; font-weight: bold; font-size: 13px; } QPushButton:checked { background: #1E40AF; border: 2px solid #0F172A; } QPushButton:hover { background: #1D4ED8; }")
         self.btn_compare.toggled.connect(self.toggle_comparison)
         vl.addWidget(self.btn_compare)
         
@@ -782,18 +784,20 @@ class ViewerWidget(QWidget):
         
         t_row = QHBoxLayout()
         t_row.setSpacing(scaled(8))
-        btn_qss = "QPushButton { background: #F8FAFC; color: #1E3A8A; border: 1px solid #CBD5E1; border-radius: 6px; padding: 8px; font-weight: bold; } QPushButton:checked { background: #1E40AF; color: white; border: 1px solid #1E40AF; }"
+        btn_qss = "QPushButton { background: #F8FAFC; color: #1E3A8A; border: 1px solid #CBD5E1; border-radius: 6px; padding: 6px; font-weight: bold; } QPushButton:checked { background: #1E40AF; color: white; border: 1px solid #1E40AF; }"
         self.chk_grid = QPushButton("Grid"); self.chk_grid.setCheckable(True); self.chk_grid.setStyleSheet(btn_qss); self.chk_grid.toggled.connect(self.toggle_grid)
         self.chk_crosshair = QPushButton("Crosshair"); self.chk_crosshair.setCheckable(True); self.chk_crosshair.setStyleSheet(btn_qss); self.chk_crosshair.toggled.connect(self.toggle_crosshair)
         self.chk_mri = QPushButton("MRI"); self.chk_mri.setCheckable(True); self.chk_mri.setChecked(True); self.chk_mri.setStyleSheet(btn_qss); self.chk_mri.toggled.connect(self.toggle_mri)
         t_row.addWidget(self.chk_grid); t_row.addWidget(self.chk_crosshair); t_row.addWidget(self.chk_mri)
         vl.addLayout(t_row)
+        vl.addStretch()
         adv_tabs.addTab(viz_tab, "👁️ Viz")
         
         # Tab 3: Nav & Export
         nav_tab = QWidget()
         nl = QVBoxLayout(nav_tab)
-        nl.setContentsMargins(scaled(6), scaled(6), scaled(6), scaled(6))
+        nl.setSpacing(scaled(4))
+        nl.setContentsMargins(scaled(8), scaled(8), scaled(8), scaled(8))
         self.sl_control_axial = self.create_slice_slider("Axial")
         self.sl_control_sagittal = self.create_slice_slider("Sagittal")
         self.sl_control_coronal = self.create_slice_slider("Coronal")
@@ -803,18 +807,20 @@ class ViewerWidget(QWidget):
         nl.addWidget(self.sl_control_axial); nl.addWidget(self.sl_control_sagittal); nl.addWidget(self.sl_control_coronal)
         
         pb = QHBoxLayout()
-        self.btn_play = QPushButton("▶"); self.btn_play.setCheckable(True); self.btn_play.clicked.connect(self.toggle_playback)
+        self.btn_play = QPushButton("▶"); self.btn_play.setCheckable(True); self.btn_play.setStyleSheet("QPushButton { background: #3B82F6; color: white; border-radius: 4px; padding: 4px 8px; } QPushButton:checked { background: #1D4ED8; }"); self.btn_play.clicked.connect(self.toggle_playback)
         self.slider_speed = QSlider(Qt.Horizontal); self.slider_speed.setRange(1,30); self.slider_speed.setValue(10); self.slider_speed.valueChanged.connect(self.update_playback_interval)
         self.chk_repeat = QCheckBox("Loop"); self.chk_repeat.setChecked(True)
         pb.addWidget(self.btn_play); pb.addWidget(self.slider_speed); pb.addWidget(self.chk_repeat)
         nl.addLayout(pb)
         
         ex_row = QHBoxLayout()
-        self.btn_export = QPushButton("💾 Save .nii"); self.btn_export.clicked.connect(self.export_mask); self.btn_export.setEnabled(False)
-        self.btn_screenshot = QPushButton("📸 Shot"); self.btn_screenshot.clicked.connect(self.save_screenshot)
-        self.btn_import_model = QPushButton("📥 Import"); self.btn_import_model.clicked.connect(self.import_model_dialog)
+        tool_btn_qss = "QPushButton { background: white; color: #1E293B; border: 1px solid #CBD5E1; border-radius: 4px; padding: 5px; font-weight: bold; font-size: 11px; } QPushButton:hover { background: #F1F5F9; }"
+        self.btn_export = QPushButton("💾 Save .nii"); self.btn_export.setStyleSheet(tool_btn_qss); self.btn_export.clicked.connect(self.export_mask); self.btn_export.setEnabled(False)
+        self.btn_screenshot = QPushButton("📸 Shot"); self.btn_screenshot.setStyleSheet(tool_btn_qss); self.btn_screenshot.clicked.connect(self.save_screenshot)
+        self.btn_import_model = QPushButton("📥 Import"); self.btn_import_model.setStyleSheet(tool_btn_qss); self.btn_import_model.clicked.connect(self.import_model_dialog)
         ex_row.addWidget(self.btn_export); ex_row.addWidget(self.btn_screenshot); ex_row.addWidget(self.btn_import_model)
         nl.addLayout(ex_row)
+        nl.addStretch()
         adv_tabs.addTab(nav_tab, "🧭 Tools")
         
         self.control_layout.addWidget(adv_tabs)
@@ -1044,14 +1050,14 @@ class ViewerWidget(QWidget):
         c = get_theme_palette()
         container = QWidget()
         l = QVBoxLayout(container)
-        l.setContentsMargins(0, 2, 0, 2)
-        l.setSpacing(3)
+        l.setContentsMargins(0, 0, 0, 0)
+        l.setSpacing(1)
         
         header = QHBoxLayout()
         plane_lbl = QLabel(f"{label}")
-        plane_lbl.setStyleSheet(f"font-weight: 600; color: {c['TEXT_PRIMARY']};")
+        plane_lbl.setStyleSheet(f"font-weight: bold; color: #1E293B; font-size: 11px;")
         val_lbl = QLabel("0")
-        val_lbl.setStyleSheet(f"color: {c['PRIMARY']}; font-weight: bold; font-size: {scaled_font(13)}px;")
+        val_lbl.setStyleSheet(f"color: #2563EB; font-weight: bold; font-size: 11px;")
         val_lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         header.addWidget(plane_lbl)
         header.addStretch()
@@ -1060,6 +1066,7 @@ class ViewerWidget(QWidget):
         
         s = QSlider(Qt.Horizontal)
         s.setEnabled(False)
+        s.setFixedHeight(14)
         s.valueChanged.connect(lambda v: self.update_slice(label.lower(), v, val_lbl))
         l.addWidget(s)
         
