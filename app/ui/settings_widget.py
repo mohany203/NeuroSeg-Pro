@@ -12,9 +12,10 @@ class ModelCard(QFrame):
         super().__init__()
         self.model_data = model_data
         self.manager = manager
+        c = get_theme_palette()
         
-        bg_color = "#E0F2FE" if is_active else "#F1F5F9"
-        border = "2px solid #0284C7" if is_active else "1px solid #CBD5E1"
+        bg_color = c['PRIMARY'] + "22" if is_active else c['SURFACE']
+        border = f"2px solid {c['PRIMARY']}" if is_active else f"1px solid {c['BORDER']}"
         
         self.setStyleSheet(f"""
             QFrame {{
@@ -22,9 +23,9 @@ class ModelCard(QFrame):
                 border: {border};
                 border-radius: 8px;
             }}
-            QLabel {{ border: none; background: transparent; }}
-            QPushButton {{ border: 1px solid #CBD5E1; background: white; color: #1E293B; border-radius: 4px; padding: 6px 14px; font-weight: bold; font-size: 12px; }}
-            QPushButton:hover {{ background: #E2E8F0; }}
+            QLabel {{ border: none; background: transparent; color: {c['TEXT_PRIMARY']}; }}
+            QPushButton {{ border: 1px solid {c['BORDER']}; background: {c['SURFACE_LIGHT']}; color: {c['TEXT_PRIMARY']}; border-radius: 4px; padding: 6px 14px; font-weight: bold; font-size: 12px; }}
+            QPushButton:hover {{ background: {c['SURFACE_HOVER']}; }}
         """)
         
         layout = QHBoxLayout(self)
@@ -34,11 +35,11 @@ class ModelCard(QFrame):
         info_layout.setSpacing(scaled(4))
         
         name_lbl = QLabel(model_data["name"])
-        name_lbl.setStyleSheet("font-weight: bold; font-size: 15px; color: #0F172A;")
+        name_lbl.setStyleSheet(f"font-weight: bold; font-size: 15px; color: {c['TEXT_PRIMARY']};")
         
         path_name = os.path.basename(model_data.get("path", ""))
         path_lbl = QLabel(path_name)
-        path_lbl.setStyleSheet("color: #64748B; font-size: 12px;")
+        path_lbl.setStyleSheet(f"color: {c['TEXT_MUTED']}; font-size: 12px;")
         
         info_layout.addWidget(name_lbl)
         info_layout.addWidget(path_lbl)
@@ -109,16 +110,17 @@ class ModelManagerWidget(QWidget):
         # Import & Open Folder Buttons
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(scaled(12))
+        c = get_theme_palette()
         self.btn_import = QPushButton("➕ Import New Model (.pth)")
         self.btn_import.setFixedHeight(scaled(38))
         self.btn_import.setCursor(Qt.PointingHandCursor)
-        self.btn_import.setStyleSheet("QPushButton { background: #1E40AF; color: white; border: none; border-radius: 6px; padding: 8px 18px; font-weight: bold; font-size: 13px; } QPushButton:hover { background: #1E3A8A; }")
+        self.btn_import.setStyleSheet(f"QPushButton {{ background: {c['PRIMARY']}; color: white; border: none; border-radius: 6px; padding: 8px 18px; font-weight: bold; font-size: 13px; }} QPushButton:hover {{ background: {c['PRIMARY_HOVER']}; }}")
         self.btn_import.clicked.connect(self.import_model)
         
         self.btn_open_folder = QPushButton("📂 Open Models Folder")
         self.btn_open_folder.setFixedHeight(scaled(38))
         self.btn_open_folder.setCursor(Qt.PointingHandCursor)
-        self.btn_open_folder.setStyleSheet("QPushButton { background: white; color: #1E3A8A; border: 1px solid #CBD5E1; border-radius: 6px; padding: 8px 18px; font-weight: bold; font-size: 13px; } QPushButton:hover { background: #F1F5F9; }")
+        self.btn_open_folder.setStyleSheet(f"QPushButton {{ background: {c['SURFACE_LIGHT']}; color: {c['TEXT_PRIMARY']}; border: 1px solid {c['BORDER']}; border-radius: 6px; padding: 8px 18px; font-weight: bold; font-size: 13px; }} QPushButton:hover {{ background: {c['SURFACE_HOVER']}; }}")
         self.btn_open_folder.clicked.connect(self.open_models_dir)
         
         btn_layout.addWidget(self.btn_import)
@@ -242,7 +244,8 @@ class SettingsWidget(QWidget):
         self.save_btn = QPushButton("💾 Save All Configuration Settings")
         self.save_btn.setFixedHeight(scaled(42))
         self.save_btn.setCursor(Qt.PointingHandCursor)
-        self.save_btn.setStyleSheet("QPushButton { background: #1E40AF; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 15px; } QPushButton:hover { background: #1E3A8A; }")
+        c = get_theme_palette()
+        self.save_btn.setStyleSheet(f"QPushButton {{ background: {c['PRIMARY']}; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 15px; }} QPushButton:hover {{ background: {c['PRIMARY_HOVER']}; }}")
         self.save_btn.clicked.connect(self.save_settings)
         self.layout.addWidget(self.save_btn)
 
