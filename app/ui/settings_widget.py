@@ -108,17 +108,19 @@ class ModelManagerWidget(QWidget):
         self.chk_ask.toggled.connect(lambda v: self.settings.set("ask_model_on_run", v))
         self.layout.addWidget(self.chk_ask)
 
-        # Import Button
+        # Import & Open Folder Buttons
         btn_layout = QHBoxLayout()
-        self.btn_import = QPushButton("Import New Model (.pth)")
-        self.btn_import.setObjectName("AccentButton")
-        self.btn_import.setFixedHeight(scaled(36))
+        btn_layout.setSpacing(scaled(12))
+        self.btn_import = QPushButton("➕ Import New Model (.pth)")
+        self.btn_import.setFixedHeight(scaled(38))
         self.btn_import.setCursor(Qt.PointingHandCursor)
+        self.btn_import.setStyleSheet("QPushButton { background: #1E40AF; color: white; border: none; border-radius: 6px; padding: 8px 18px; font-weight: bold; font-size: 13px; } QPushButton:hover { background: #1E3A8A; }")
         self.btn_import.clicked.connect(self.import_model)
         
         self.btn_open_folder = QPushButton("📂 Open Models Folder")
-        self.btn_open_folder.setFixedHeight(scaled(36))
+        self.btn_open_folder.setFixedHeight(scaled(38))
         self.btn_open_folder.setCursor(Qt.PointingHandCursor)
+        self.btn_open_folder.setStyleSheet("QPushButton { background: white; color: #1E3A8A; border: 1px solid #CBD5E1; border-radius: 6px; padding: 8px 18px; font-weight: bold; font-size: 13px; } QPushButton:hover { background: #F1F5F9; }")
         self.btn_open_folder.clicked.connect(self.open_models_dir)
         
         btn_layout.addWidget(self.btn_import)
@@ -175,7 +177,7 @@ class ModelManagerWidget(QWidget):
         app_models_dir = os.path.join(APP_DATA_DIR, "models")
         os.makedirs(app_models_dir, exist_ok=True)
         
-        path, _ = QFileDialog.getOpenFileName(self, "Import Model", "", "PyTorch Model (*.pth)")
+        path, _ = QFileDialog.getOpenFileName(self.window(), "Import Model (.pth)", os.path.expanduser("~"), "PyTorch Model (*.pth *.pt *.onnx)")
         if path:
             name, ok = QInputDialog.getText(self, "Model Name", "Enter a display name for this model:")
             if ok and name:
