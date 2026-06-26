@@ -13,8 +13,8 @@ class ModelCard(QFrame):
         self.model_data = model_data
         self.manager = manager
         
-        bg_color = "rgba(79, 209, 197, 0.15)" if is_active else "rgba(255, 255, 255, 0.05)"
-        border = "1px solid #4fd1c5" if is_active else "1px solid rgba(255, 255, 255, 0.1)"
+        bg_color = "#E0F2FE" if is_active else "#F1F5F9"
+        border = "2px solid #0284C7" if is_active else "1px solid #CBD5E1"
         
         self.setStyleSheet(f"""
             QFrame {{
@@ -22,12 +22,9 @@ class ModelCard(QFrame):
                 border: {border};
                 border-radius: 8px;
             }}
-            QFrame:hover {{
-                background-color: rgba(255, 255, 255, 0.1);
-            }}
             QLabel {{ border: none; background: transparent; }}
-            QPushButton {{ border: none; background: rgba(255,255,255,0.1); border-radius: 4px; padding: 6px 14px; font-weight: bold; }}
-            QPushButton:hover {{ background: rgba(255,255,255,0.2); }}
+            QPushButton {{ border: 1px solid #CBD5E1; background: white; color: #1E293B; border-radius: 4px; padding: 6px 14px; font-weight: bold; font-size: 12px; }}
+            QPushButton:hover {{ background: #E2E8F0; }}
         """)
         
         layout = QHBoxLayout(self)
@@ -37,11 +34,11 @@ class ModelCard(QFrame):
         info_layout.setSpacing(scaled(4))
         
         name_lbl = QLabel(model_data["name"])
-        name_lbl.setStyleSheet("font-weight: bold; font-size: 15px; color: white;")
+        name_lbl.setStyleSheet("font-weight: bold; font-size: 15px; color: #0F172A;")
         
         path_name = os.path.basename(model_data.get("path", ""))
         path_lbl = QLabel(path_name)
-        path_lbl.setStyleSheet("color: #a0aec0; font-size: 12px;")
+        path_lbl.setStyleSheet("color: #64748B; font-size: 12px;")
         
         info_layout.addWidget(name_lbl)
         info_layout.addWidget(path_lbl)
@@ -51,12 +48,13 @@ class ModelCard(QFrame):
         
         if is_active:
             def_lbl = QLabel("★ Default Model")
-            def_lbl.setStyleSheet("color: #4fd1c5; font-weight: bold; font-size: 13px; margin-right: 15px;")
+            def_lbl.setStyleSheet("color: #0284C7; font-weight: bold; font-size: 13px; margin-right: 15px;")
             layout.addWidget(def_lbl)
         
         if not is_active:
             btn_def = QPushButton("Set Default")
             btn_def.setCursor(Qt.PointingHandCursor)
+            btn_def.setStyleSheet("QPushButton { background: #3B82F6; color: white; border: none; border-radius: 4px; padding: 6px 14px; font-weight: bold; } QPushButton:hover { background: #2563EB; }")
             btn_def.clicked.connect(lambda: self.manager.set_default(model_data["id"]))
             layout.addWidget(btn_def)
             
@@ -67,7 +65,7 @@ class ModelCard(QFrame):
             
         btn_del = QPushButton("Delete")
         btn_del.setCursor(Qt.PointingHandCursor)
-        btn_del.setStyleSheet("QPushButton { background: rgba(229, 62, 62, 0.2); color: #fc8181; } QPushButton:hover { background: rgba(229, 62, 62, 0.4); }")
+        btn_del.setStyleSheet("QPushButton { background: #FEE2E2; color: #DC2626; border: 1px solid #FECACA; border-radius: 4px; padding: 6px 14px; font-weight: bold; } QPushButton:hover { background: #FECACA; }")
         btn_del.clicked.connect(lambda: self.manager.delete_model(model_data))
         layout.addWidget(btn_del)
 
@@ -241,9 +239,10 @@ class SettingsWidget(QWidget):
         
         # Save Button
         self.layout.addStretch()
-        self.save_btn = QPushButton("Save All Settings")
-        self.save_btn.setObjectName("AccentButton")
+        self.save_btn = QPushButton("💾 Save All Configuration Settings")
         self.save_btn.setFixedHeight(scaled(42))
+        self.save_btn.setCursor(Qt.PointingHandCursor)
+        self.save_btn.setStyleSheet("QPushButton { background: #1E40AF; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 15px; } QPushButton:hover { background: #1E3A8A; }")
         self.save_btn.clicked.connect(self.save_settings)
         self.layout.addWidget(self.save_btn)
 
