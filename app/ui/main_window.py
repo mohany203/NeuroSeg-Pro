@@ -67,7 +67,7 @@ class MainWindow(QMainWindow):
         btn_open = self._create_header_btn("📂 Open Study", self.open_study_dialog, c)
         hl.addWidget(btn_open)
         
-        btn_export = self._create_header_btn("📄 Export Report", lambda: self.viewer_page.export_mask(), c)
+        btn_export = self._create_header_btn("📄 Export Report", lambda: self.viewer_page.export_clinical_report(), c)
         hl.addWidget(btn_export)
         
         btn_settings = self._create_header_btn("⚙️ Settings", self.show_settings_modal, c)
