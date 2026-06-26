@@ -1134,10 +1134,9 @@ class ViewerWidget(QWidget):
 
     def import_model_dialog(self):
         """Allows user to import a new model file."""
-        options = QFileDialog.Options()
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Import PyTorch Model", "", 
-            "PyTorch Models (*.pth);;All Files (*)", options=options
+            self.window(), "Import PyTorch Model (.pth)", os.path.expanduser("~"), 
+            "PyTorch Models (*.pth *.pt *.onnx);;All Files (*)"
         )
         
         if file_path:
