@@ -79,6 +79,7 @@ class MainWindow(QMainWindow):
         btn_about = self._create_header_btn("ℹ️ About", self.show_about_dialog, c)
         hl.addWidget(btn_about)
         
+        self.header_buttons = [btn_open, btn_export, btn_settings, btn_help, btn_about]
         self.main_layout.addWidget(self.header_frame)
 
     def _create_header_btn(self, text, callback, c):
@@ -168,3 +169,6 @@ class MainWindow(QMainWindow):
             self.header_frame.setStyleSheet(f"background-color: {c['HEADER_BG']}; border-bottom: 1px solid {c['BORDER']};")
         if hasattr(self, 'logo_label'):
             self.logo_label.setStyleSheet(f"font-size: {scaled(20)}px; font-weight: 800; color: {c['PRIMARY']}; letter-spacing: 0.5px;")
+        if hasattr(self, 'header_buttons'):
+            for btn in self.header_buttons:
+                btn.setStyleSheet(f"QPushButton {{ background-color: transparent; color: {c['TEXT_PRIMARY']}; border: none; border-radius: {scaled(6)}px; padding: {scaled(4)}px {scaled(14)}px; font-weight: 600; font-size: {scaled(13)}px; }} QPushButton:hover {{ background-color: {c['SURFACE_LIGHT']}; color: {c['PRIMARY']}; }}")

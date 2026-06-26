@@ -448,22 +448,106 @@ class ViewerWidget(QWidget):
     def refresh_theme(self):
         theme = self.settings.get("theme")
         is_light = (theme == "Light")
+        c = get_theme_palette()
         
-        # 3D View Background (Always black clinical DICOM background matching screenshot)
+        # 3D View Background
         bg_color = [0, 0, 0, 255]
         self.threed_view.setBackgroundColor(bg_color[0], bg_color[1], bg_color[2], 255)
         
-        # 2D Graph Backgrounds (Always black clinical DICOM background)
+        # 2D Graph Backgrounds
         pg_bg = 'k'
-        
         for v in [self.axial_view, self.sagittal_view, self.coronal_view, self.compare_view_axial, self.compare_view_sagittal, self.compare_view_coronal]:
             v.win.setBackground(pg_bg)
-            # v.title.setStyleSheet(f"color: {'#000' if is_light else '#fff'}; ...") # Optional text update
+            
+        # Dynamic Bottom Strip Refresh
+        if hasattr(self, 'bottom_strip'):
+            self.bottom_strip.setStyleSheet(f"background-color: {c['BACKGROUND']}; border-top: 1px solid {c['BORDER']};")
+        for card in [getattr(self, 'card_status', None), getattr(self, 'card_time', None), getattr(self, 'card_vol', None), getattr(self, 'card_qual', None)]:
+            if card:
+                card.setStyleSheet(f"background: {c['SURFACE']}; border: 1px solid {c['BORDER']}; border-radius: {scaled(8)}px;")
+                for lbl in card.findChildren(QLabel):
+                    obj_name = lbl.objectName()
+                    if obj_name == "MainVal":
+                        lbl.setStyleSheet(f"font-size: {scaled(15)}px; font-weight: 800; color: {c['TEXT_PRIMARY']}; border: none; background: transparent;")
+                    elif obj_name == "SubVal":
+                        lbl.setStyleSheet(f"font-size: {scaled(11)}px; color: {c['TEXT_MUTED']}; border: none; background: transparent;")
+                    else:
+                        txt = lbl.text()
+                        if txt in ["INFERENCE STATUS", "INFERENCE TIME", "VOLUMETRIC RESULTS", "SEGMENTATION QUALITY"]:
+                            lbl.setStyleSheet(f"font-size: {scaled(11)}px; font-weight: 800; color: {c['TEXT_SECONDARY']}; border: none; background: transparent;")
+                            
+        # Viewport Toolbar Refresh
+        if hasattr(self, 'viewport_toolbar'):
+            self.viewport_toolbar.setStyleSheet(f"""
+                #ViewportToolbar {{
+                    background-color: {c['SURFACE']};
+                    border-bottom: 1px solid {c['BORDER']};
+                    min-height: {scaled(48)}px;
+                    padding: {scaled(4)}px {scaled(8)}px;
+                }}
+                #ViewportToolbar QToolButton {{
+                    background: transparent;
+                    border: 1px solid transparent;
+                    border-radius: {scaled(6)}px;
+                    padding: {scaled(6)}px {scaled(12)}px;
+                    color: {c['TEXT_SECONDARY']};
+                    font-size: {scaled_font(14)}px;
+                    font-weight: 600;
+                }}
+                #ViewportToolbar QToolButton:hover {{
+                    background-color: {c['SURFACE_LIGHT']};
+                    border-color: {c['BORDER']};
+                    color: {c['TEXT_PRIMARY']};
+                }}
+                #ViewportToolbar QToolButton:checked {{
+                    background-color: {c['PRIMARY']}33;
+                    border-color: {c['PRIMARY']};
+                    color: {c['PRIMARY']};
+                }}
+            """)
+            for sep in self.viewport_toolbar.findChildren(QFrame):
+                if sep.frameShape() == QFrame.VLine:
+                    sep.setStyleSheet(f"color: {c['BORDER']};")
+                    
+        # Sidebar & Execute button Refresh
+        if hasattr(self, 'btn_run'):
+            run_bg = "#0F172A" if is_light else "#2563EB"
+            run_hover = "#1E293B" if is_light else "#1D4ED8"
+            self.btn_run.setStyleSheet(f"background: {run_bg}; color: white; font-weight: 800; font-size: 13px; border-radius: 6px;")
+            
+        # Control Tabs Refresh
+        if hasattr(self, 'adv_tabs'):
+            self.adv_tabs.setStyleSheet(f"""
+                QTabWidget::pane {{ border: 1px solid {c['BORDER']}; border-radius: 8px; background: {c['SURFACE']}; top: -1px; }}
+                QTabBar::tab {{ background: {c['SURFACE_LIGHT']}; color: {c['TEXT_SECONDARY']}; padding: 6px 12px; border: 1px solid {c['BORDER']}; border-bottom: none; border-top-left-radius: 6px; border-top-right-radius: 6px; font-weight: bold; margin-right: 2px; }}
+                QTabBar::tab:selected {{ background: {c['SURFACE']}; color: {c['PRIMARY']}; border-bottom: 2px solid {c['SURFACE']}; }}
+                QTabBar::tab:hover {{ background: {c['SURFACE_HOVER']}; }}
+                QSlider::groove:horizontal {{ border: none; height: 6px; background: {c['BORDER']}; border-radius: 3px; }}
+                QSlider::sub-page:horizontal {{ background: {c['PRIMARY']}; border-radius: 3px; }}
+                QSlider::handle:horizontal {{ background: {c['PRIMARY_HOVER']}; border: 2px solid {c['SURFACE']}; width: 14px; height: 14px; margin: -4px 0; border-radius: 7px; }}
+            """)
+            
+        viz_btn_qss = f"QPushButton {{ background: {c['SURFACE_LIGHT']}; color: {c['TEXT_SECONDARY']}; border: 1px solid {c['BORDER']}; border-radius: 6px; padding: 6px; font-weight: bold; }} QPushButton:checked {{ background: {c['PRIMARY']}; color: white; border: 1px solid {c['PRIMARY']}; }}"
+        for b in [getattr(self, 'chk_grid', None), getattr(self, 'chk_crosshair', None), getattr(self, 'chk_mri', None)]:
+            if b: b.setStyleSheet(viz_btn_qss)
+            
+        tool_btn_qss = f"QPushButton {{ background: {c['SURFACE']}; color: {c['TEXT_PRIMARY']}; border: 1px solid {c['BORDER']}; border-radius: 4px; padding: 5px; font-weight: bold; font-size: 11px; }} QPushButton:hover {{ background: {c['SURFACE_LIGHT']}; }}"
+        for b in [getattr(self, 'btn_export', None), getattr(self, 'btn_screenshot', None), getattr(self, 'btn_import_model', None)]:
+            if b: b.setStyleSheet(tool_btn_qss)
+            
+        if hasattr(self, 'study_tree'):
+            self.study_tree.setStyleSheet(f"QTreeView {{ border: none; background: transparent; font-size: 12px; color: {c['TEXT_PRIMARY']}; }} QTreeView::item:selected {{ background: {c['PRIMARY']}; color: white; border-radius: 4px; }}")
+        if hasattr(self, 'seq_table'):
+            self.seq_table.setStyleSheet(f"border: none; background: transparent; font-size: 11px; color: {c['TEXT_PRIMARY']};")
+            
+        if hasattr(self, 'metrics_table'):
+            hdr_bg = "#E2E8F0" if is_light else "#2A2A38"
+            for row in [0, 4]:
+                item = self.metrics_table.item(row, 0)
+                if item: item.setBackground(QColor(hdr_bg))
+                
+        self.update_legend()
 
-    def setup_bottom_strip(self):
-        c = get_theme_palette()
-        self.bottom_strip = QFrame()
-        self.bottom_strip.setObjectName("BottomStrip")
     def setup_bottom_strip(self):
         c = get_theme_palette()
         self.bottom_strip = QFrame()
@@ -686,7 +770,8 @@ class ViewerWidget(QWidget):
         self.control_layout.addWidget(ms_card)
 
         # --- Advanced Comparison & Metrics Matrix ---
-        adv_tabs = QTabWidget()
+        self.adv_tabs = QTabWidget()
+        adv_tabs = self.adv_tabs
         adv_tabs.setStyleSheet("""
             QTabWidget::pane { border: 1px solid #CBD5E1; border-radius: 8px; background: white; top: -1px; }
             QTabBar::tab { background: #F1F5F9; color: #475569; padding: 8px 14px; border: 1px solid #CBD5E1; border-bottom: none; border-top-left-radius: 6px; border-top-right-radius: 6px; font-weight: bold; margin-right: 2px; }
