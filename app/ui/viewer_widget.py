@@ -228,6 +228,8 @@ class ViewerWidget(QWidget):
         
         # Default Layout
         self.setup_grid_layout()
+        self.setup_bottom_strip()
+        view_main_layout.addWidget(self.bottom_strip)
         
         # Controls Panel — compact sidebar (flex: stretches to fill container width)
         self.controls = QFrame()
@@ -252,16 +254,16 @@ class ViewerWidget(QWidget):
 
         # Splitter for Resizable Sidebar
         self.splitter = QSplitter(Qt.Horizontal)
-        self.splitter.addWidget(self.view_container)
         self.splitter.addWidget(self.scroll_controls)
+        self.splitter.addWidget(self.view_container)
         
         # Viewport gets all extra space, sidebar stays fixed
-        self.splitter.setStretchFactor(0, 1)
-        self.splitter.setStretchFactor(1, 0)
+        self.splitter.setStretchFactor(0, 0)
+        self.splitter.setStretchFactor(1, 1)
         self.splitter.setChildrenCollapsible(False)
         
-        # Set initial sizes [viewport, sidebar]
-        self.splitter.setSizes([scaled(780), scaled(260)]) 
+        # Set initial sizes [sidebar, viewport]
+        self.splitter.setSizes([scaled(280), scaled(900)]) 
         
         self.layout.addWidget(self.splitter)
         
@@ -417,8 +419,8 @@ class ViewerWidget(QWidget):
             self.threed_view.show()
             
             self.view_grid.addWidget(self.axial_view, 0, 0)
-            self.view_grid.addWidget(self.sagittal_view, 0, 1)
-            self.view_grid.addWidget(self.coronal_view, 1, 0)
+            self.view_grid.addWidget(self.coronal_view, 0, 1)
+            self.view_grid.addWidget(self.sagittal_view, 1, 0)
             self.view_grid.addWidget(self.threed_view, 1, 1)
 
             # Fix Resizing: Equal Stretch for 2x2
@@ -457,6 +459,77 @@ class ViewerWidget(QWidget):
         for v in [self.axial_view, self.sagittal_view, self.coronal_view, self.compare_view_axial, self.compare_view_sagittal, self.compare_view_coronal]:
             v.win.setBackground(pg_bg)
             # v.title.setStyleSheet(f"color: {'#000' if is_light else '#fff'}; ...") # Optional text update
+
+    def setup_bottom_strip(self):
+        c = get_theme_palette()
+        self.bottom_strip = QFrame()
+        self.bottom_strip.setObjectName("BottomStrip")
+        self.bottom_strip.setFixedHeight(scaled(105))
+        self.bottom_strip.setStyleSheet(f"background-color: {c['SURFACE']}; border-top: 1px solid {c['BORDER']};")
+        
+        strip_layout = QHBoxLayout(self.bottom_strip)
+        strip_layout.setContentsMargins(scaled(16), scaled(8), scaled(16), scaled(8))
+        strip_layout.setSpacing(scaled(16))
+        
+        self.card_vol = self._create_strip_card("📊 Volumetric Tumor Load", "Waiting for run...")
+        strip_layout.addWidget(self.card_vol)
+        
+        self.card_dice = self._create_strip_card("🎯 Mean Dice Score (DSC)", "-")
+        strip_layout.addWidget(self.card_dice)
+        
+        self.card_hd95 = self._create_strip_card("📐 Hausdorff Distance (HD95)", "-")
+        strip_layout.addWidget(self.card_hd95)
+        
+        self.card_exec = self._create_strip_card("⚡ Execution & Models", "Idle • Ready")
+        strip_layout.addWidget(self.card_exec)
+
+    def _create_strip_card(self, title, init_val):
+        c = get_theme_palette()
+        card = QFrame()
+        card.setStyleSheet(f"background: {c['BACKGROUND']}; border: 1px solid {c['BORDER']}; border-radius: {scaled(8)}px; padding: {scaled(6)}px;")
+        l = QVBoxLayout(card)
+        l.setContentsMargins(scaled(10), scaled(4), scaled(10), scaled(4))
+        l.setSpacing(scaled(2))
+        
+        lbl_t = QLabel(title)
+        lbl_t.setStyleSheet(f"font-size: {scaled(11)}px; font-weight: bold; color: {c['TEXT_SECONDARY']}; border: none; background: transparent;")
+        
+        lbl_v = QLabel(init_val)
+        lbl_v.setObjectName("ValLabel")
+        lbl_v.setStyleSheet(f"font-size: {scaled(14)}px; font-weight: 800; color: {c['PRIMARY']}; border: none; background: transparent;")
+        
+        l.addWidget(lbl_t)
+        l.addWidget(lbl_v)
+        return card
+
+    def update_bottom_strip(self):
+        if not hasattr(self, 'bottom_strip'): return
+        c = get_theme_palette()
+        if not self.metrics_a:
+            self.card_vol.findChild(QLabel, "ValLabel").setText("No results yet")
+            self.card_dice.findChild(QLabel, "ValLabel").setText("-")
+            self.card_hd95.findChild(QLabel, "ValLabel").setText("-")
+            return
+            
+        wt_vol = self.metrics_a.get("Whole Tumor", {}).get("volume", 0.0) / 1000.0
+        tc_vol = self.metrics_a.get("Tumor Core", {}).get("volume", 0.0) / 1000.0
+        et_vol = self.metrics_a.get("Enhancing Tumor", {}).get("volume", 0.0) / 1000.0
+        
+        self.card_vol.findChild(QLabel, "ValLabel").setText(f"WT: {wt_vol:.1f} cm³ | TC: {tc_vol:.1f} cm³ | ET: {et_vol:.1f} cm³")
+        
+        dsc_a = self.metrics_a.get("Whole Tumor", {}).get("dice", 0.0)
+        hd_a = self.metrics_a.get("Whole Tumor", {}).get("hd95", 0.0)
+        
+        if self.metrics_b:
+            dsc_b = self.metrics_b.get("Whole Tumor", {}).get("dice", 0.0)
+            hd_b = self.metrics_b.get("Whole Tumor", {}).get("hd95", 0.0)
+            self.card_dice.findChild(QLabel, "ValLabel").setText(f"A: {dsc_a*100:.1f}% vs B: {dsc_b*100:.1f}%")
+            self.card_hd95.findChild(QLabel, "ValLabel").setText(f"A: {hd_a:.2f}mm vs B: {hd_b:.2f}mm")
+            self.card_exec.findChild(QLabel, "ValLabel").setText(f"Dual: {self.combo_model_a.currentText()} & {self.combo_model_b.currentText()}")
+        else:
+            self.card_dice.findChild(QLabel, "ValLabel").setText(f"{dsc_a*100:.1f}% (WT Dice)")
+            self.card_hd95.findChild(QLabel, "ValLabel").setText(f"{hd_a:.2f} mm (WT Surface)")
+            self.card_exec.findChild(QLabel, "ValLabel").setText(f"Active: {self.combo_model_a.currentText()}")
 
     def setup_controls(self):
         c = get_theme_palette()
@@ -1303,6 +1376,7 @@ class ViewerWidget(QWidget):
 
     def update_metrics_display(self, *args):
         """Updates both dynamic and permanent metrics tables."""
+        self.update_bottom_strip()
         
         # --- 0. Dynamic Column Visibility (Model B) ---
         has_model_b = bool(self.metrics_b)
