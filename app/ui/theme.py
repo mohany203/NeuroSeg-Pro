@@ -56,37 +56,37 @@ DARK_THEME = {
 
 # Light Mode: "Warm Clinical" — NOT plain white, warm tints + gradients
 LIGHT_THEME = {
-    "PRIMARY": "#2563EB",        # Blue-600
-    "PRIMARY_HOVER": "#1D4ED8",  # Blue-700
-    "PRIMARY_LIGHT": "#2563EB18",# Blue @ 10%
-    "ACCENT": "#7C3AED",         # Violet-600
-    "ACCENT_LIGHT": "#7C3AED18", # Violet @ 10%
-    "BACKGROUND": "#F0F2F8",     # Warm blue-gray (not white)
-    "SURFACE": "#FAFBFF",        # Very light blue-white
-    "SURFACE_LIGHT": "#EEF0F7",  # Slightly darker
-    "SURFACE_HOVER": "#E4E7F0",  # Hover state
-    "TEXT_PRIMARY": "#1A1D2E",   # Deep navy
-    "TEXT_SECONDARY": "#5B6078", # Muted navy
-    "TEXT_MUTED": "#9098B0",     # Very muted
-    "BORDER": "#D8DCE8",         # Soft border
-    "BORDER_HOVER": "#2563EB60", # Blue border on hover
-    "SUCCESS": "#059669",        # Emerald-600
-    "WARNING": "#D97706",        # Amber-600
-    "ERROR": "#DC2626",          # Red-600
-    "GRADIENT_PRIMARY": "qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #2563EB, stop:1 #7C3AED)",
-    "GRADIENT_SURFACE": "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #FAFBFF, stop:1 #F0F2F8)",
-    "GRADIENT_ACCENT": "qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #7C3AED, stop:1 #DB2777)",
+    "PRIMARY": "#1E3A8A",        # Dark Navy Blue
+    "PRIMARY_HOVER": "#1E40AF",
+    "PRIMARY_LIGHT": "#EFF6FF",
+    "ACCENT": "#2563EB",
+    "ACCENT_LIGHT": "#EFF6FF",
+    "BACKGROUND": "#FFFFFF",     # Pure white background matching screenshot
+    "SURFACE": "#FFFFFF",
+    "SURFACE_LIGHT": "#F8FAFC",
+    "SURFACE_HOVER": "#F1F5F9",
+    "TEXT_PRIMARY": "#0F172A",   # Slate 900
+    "TEXT_SECONDARY": "#475569", # Slate 600
+    "TEXT_MUTED": "#94A3B8",     # Slate 400
+    "BORDER": "#E2E8F0",         # Slate 200 clean border
+    "BORDER_HOVER": "#93C5FD",
+    "SUCCESS": "#10B981",
+    "WARNING": "#F59E0B",
+    "ERROR": "#EF4444",
+    "GRADIENT_PRIMARY": "#0F172A", # Solid dark navy for EXECUTE button
+    "GRADIENT_SURFACE": "#FFFFFF",
+    "GRADIENT_ACCENT": "#1E3A8A",
     "CARD_BG": "#FFFFFF",
-    "SHADOW": "rgba(30, 40, 80, 60)",
-    "SIDEBAR_BG": "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #F8F9FF, stop:1 #ECEEF8)",
-    "HEADER_BG": "#F5F6FC",
-    "SCROLLBAR_BG": "#E8EAF2",
-    "SCROLLBAR_HANDLE": "#C8CCDA",
-    "INPUT_BG": "#F5F6FC",
-    "BADGE_BG": "#2563EB20",
-    "BADGE_TEXT": "#1D4ED8",
-    "DANGER_BG": "#FEE2E2",      # Light Red
-    "DANGER_FG": "#991B1B",      # Dark Red Text
+    "SHADOW": "rgba(0, 0, 0, 15)",
+    "SIDEBAR_BG": "#FFFFFF",
+    "HEADER_BG": "#FFFFFF",
+    "SCROLLBAR_BG": "#F1F5F9",
+    "SCROLLBAR_HANDLE": "#CBD5E1",
+    "INPUT_BG": "#FFFFFF",
+    "BADGE_BG": "#DCFCE7",
+    "BADGE_TEXT": "#15803D",
+    "DANGER_BG": "#FEE2E2",
+    "DANGER_FG": "#991B1B",
 }
 
 def get_theme_palette():

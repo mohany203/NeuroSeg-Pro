@@ -13,7 +13,7 @@ if not os.path.exists(APP_DATA_DIR):
 SETTINGS_FILE = os.path.join(APP_DATA_DIR, "settings.json")
 
 DEFAULT_SETTINGS = {
-    "theme": "Dark",
+    "theme": "Light",
     "font_size": 14,  # Reset to standard size
 
     "visual_quality": "High",
@@ -44,6 +44,7 @@ class Settings:
             except Exception as e:
                 print(f"Error loading settings: {e}")
         
+        self.data["theme"] = "Light" # Force light theme matching user clinical design
         self.validate_paths()
         
         # Always scan for new models in 'models' folder

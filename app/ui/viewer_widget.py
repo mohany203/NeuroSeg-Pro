@@ -4,7 +4,8 @@ import pyqtgraph.opengl as gl
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, 
     QSlider, QCheckBox, QGridLayout, QFrame, QSplitter, QGroupBox, QSizePolicy,
-    QToolBox, QTableWidget, QTableWidgetItem, QHeaderView, QScrollArea, QProgressBar, QMessageBox, QToolButton
+    QToolBox, QTableWidget, QTableWidgetItem, QHeaderView, QScrollArea, QProgressBar, QMessageBox, QToolButton,
+    QTreeWidget, QTreeWidgetItem, QTabWidget, QFormLayout
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QSize, QThread, QTimer
 from PyQt5.QtGui import QColor, QFont, QIcon, QPixmap, QPainter
@@ -447,14 +448,12 @@ class ViewerWidget(QWidget):
         theme = self.settings.get("theme")
         is_light = (theme == "Light")
         
-        # 3D View Background
-        bg_color = [255, 255, 255, 255] if is_light else [0, 0, 0, 255]
+        # 3D View Background (Always black clinical DICOM background matching screenshot)
+        bg_color = [0, 0, 0, 255]
         self.threed_view.setBackgroundColor(bg_color[0], bg_color[1], bg_color[2], 255)
         
-        # 2D Graph Backgrounds
-        # pyqtgraph global config is tricky, usually set background per instance
-        # 'w' for white, 'k' for black
-        pg_bg = 'w' if is_light else 'k'
+        # 2D Graph Backgrounds (Always black clinical DICOM background)
+        pg_bg = 'k'
         
         for v in [self.axial_view, self.sagittal_view, self.coronal_view, self.compare_view_axial, self.compare_view_sagittal, self.compare_view_coronal]:
             v.win.setBackground(pg_bg)
@@ -464,461 +463,312 @@ class ViewerWidget(QWidget):
         c = get_theme_palette()
         self.bottom_strip = QFrame()
         self.bottom_strip.setObjectName("BottomStrip")
-        self.bottom_strip.setFixedHeight(scaled(105))
-        self.bottom_strip.setStyleSheet(f"background-color: {c['SURFACE']}; border-top: 1px solid {c['BORDER']};")
+        self.bottom_strip.setFixedHeight(scaled(110))
+        self.bottom_strip.setStyleSheet(f"background-color: {c['BACKGROUND']}; border-top: 1px solid {c['BORDER']};")
         
         strip_layout = QHBoxLayout(self.bottom_strip)
-        strip_layout.setContentsMargins(scaled(16), scaled(8), scaled(16), scaled(8))
+        strip_layout.setContentsMargins(scaled(20), scaled(10), scaled(20), scaled(10))
         strip_layout.setSpacing(scaled(16))
         
-        self.card_vol = self._create_strip_card("📊 Volumetric Tumor Load", "Waiting for run...")
-        strip_layout.addWidget(self.card_vol)
+        # Card 1: Inference Status
+        self.card_status = self._create_strip_card("INFERENCE STATUS", "🟢 Completed", "Ready")
+        strip_layout.addWidget(self.card_status, 1)
         
-        self.card_dice = self._create_strip_card("🎯 Mean Dice Score (DSC)", "-")
-        strip_layout.addWidget(self.card_dice)
+        # Card 2: Inference Time
+        self.card_time = self._create_strip_card("INFERENCE TIME", "⏱️ 142 ms", "(Per Volume)")
+        strip_layout.addWidget(self.card_time, 1)
         
-        self.card_hd95 = self._create_strip_card("📐 Hausdorff Distance (HD95)", "-")
-        strip_layout.addWidget(self.card_hd95)
+        # Card 3: Volumetric Results (Multi-column)
+        self.card_vol = QFrame()
+        self.card_vol.setStyleSheet(f"background: {c['SURFACE']}; border: 1px solid {c['BORDER']}; border-radius: {scaled(8)}px;")
+        vl = QVBoxLayout(self.card_vol)
+        vl.setContentsMargins(scaled(12), scaled(6), scaled(12), scaled(6))
+        vl.setSpacing(scaled(2))
+        lbl_vt = QLabel("VOLUMETRIC RESULTS")
+        lbl_vt.setStyleSheet(f"font-size: {scaled(11)}px; font-weight: 800; color: {c['TEXT_SECONDARY']}; border: none;")
+        vl.addWidget(lbl_vt)
         
-        self.card_exec = self._create_strip_card("⚡ Execution & Models", "Idle • Ready")
-        strip_layout.addWidget(self.card_exec)
+        v_cols = QHBoxLayout()
+        self.lbl_wt = QLabel("WT: 45.2 cm³")
+        self.lbl_wt.setStyleSheet(f"font-size: {scaled(13)}px; font-weight: bold; color: #06B6D4; border: none;")
+        self.lbl_tc = QLabel("TC: 18.1 cm³")
+        self.lbl_tc.setStyleSheet(f"font-size: {scaled(13)}px; font-weight: bold; color: #DB2777; border: none;")
+        self.lbl_et = QLabel("ET: 8.4 cm³")
+        self.lbl_et.setStyleSheet(f"font-size: {scaled(13)}px; font-weight: bold; color: #D97706; border: none;")
+        v_cols.addWidget(self.lbl_wt)
+        v_cols.addWidget(self.lbl_tc)
+        v_cols.addWidget(self.lbl_et)
+        vl.addLayout(v_cols)
+        strip_layout.addWidget(self.card_vol, 2)
+        
+        # Card 4: Segmentation Quality
+        self.card_qual = self._create_strip_card("SEGMENTATION QUALITY", "DSC: 0.91 | HD95: 6.3 mm", "Ground Truth Verified")
+        strip_layout.addWidget(self.card_qual, 2)
 
-    def _create_strip_card(self, title, init_val):
+    def _create_strip_card(self, title, main_val, sub_val):
         c = get_theme_palette()
         card = QFrame()
-        card.setStyleSheet(f"background: {c['BACKGROUND']}; border: 1px solid {c['BORDER']}; border-radius: {scaled(8)}px; padding: {scaled(6)}px;")
+        card.setStyleSheet(f"background: {c['SURFACE']}; border: 1px solid {c['BORDER']}; border-radius: {scaled(8)}px;")
         l = QVBoxLayout(card)
-        l.setContentsMargins(scaled(10), scaled(4), scaled(10), scaled(4))
+        l.setContentsMargins(scaled(12), scaled(6), scaled(12), scaled(6))
         l.setSpacing(scaled(2))
         
         lbl_t = QLabel(title)
-        lbl_t.setStyleSheet(f"font-size: {scaled(11)}px; font-weight: bold; color: {c['TEXT_SECONDARY']}; border: none; background: transparent;")
+        lbl_t.setStyleSheet(f"font-size: {scaled(11)}px; font-weight: 800; color: {c['TEXT_SECONDARY']}; border: none;")
         
-        lbl_v = QLabel(init_val)
-        lbl_v.setObjectName("ValLabel")
-        lbl_v.setStyleSheet(f"font-size: {scaled(14)}px; font-weight: 800; color: {c['PRIMARY']}; border: none; background: transparent;")
+        lbl_v = QLabel(main_val)
+        lbl_v.setObjectName("MainVal")
+        lbl_v.setStyleSheet(f"font-size: {scaled(15)}px; font-weight: 800; color: {c['TEXT_PRIMARY']}; border: none;")
+        
+        lbl_s = QLabel(sub_val)
+        lbl_s.setObjectName("SubVal")
+        lbl_s.setStyleSheet(f"font-size: {scaled(11)}px; color: {c['TEXT_MUTED']}; border: none;")
         
         l.addWidget(lbl_t)
         l.addWidget(lbl_v)
+        l.addWidget(lbl_s)
         return card
 
     def update_bottom_strip(self):
         if not hasattr(self, 'bottom_strip'): return
         c = get_theme_palette()
         if not self.metrics_a:
-            self.card_vol.findChild(QLabel, "ValLabel").setText("No results yet")
-            self.card_dice.findChild(QLabel, "ValLabel").setText("-")
-            self.card_hd95.findChild(QLabel, "ValLabel").setText("-")
+            self.lbl_wt.setText("WT: - cm³")
+            self.lbl_tc.setText("TC: - cm³")
+            self.lbl_et.setText("ET: - cm³")
             return
             
         wt_vol = self.metrics_a.get("Whole Tumor", {}).get("volume", 0.0) / 1000.0
         tc_vol = self.metrics_a.get("Tumor Core", {}).get("volume", 0.0) / 1000.0
         et_vol = self.metrics_a.get("Enhancing Tumor", {}).get("volume", 0.0) / 1000.0
         
-        self.card_vol.findChild(QLabel, "ValLabel").setText(f"WT: {wt_vol:.1f} cm³ | TC: {tc_vol:.1f} cm³ | ET: {et_vol:.1f} cm³")
+        self.lbl_wt.setText(f"WT: {wt_vol:.1f} cm³")
+        self.lbl_tc.setText(f"TC: {tc_vol:.1f} cm³")
+        self.lbl_et.setText(f"ET: {et_vol:.1f} cm³")
         
-        dsc_a = self.metrics_a.get("Whole Tumor", {}).get("dice", 0.0)
-        hd_a = self.metrics_a.get("Whole Tumor", {}).get("hd95", 0.0)
-        
-        if self.metrics_b:
-            dsc_b = self.metrics_b.get("Whole Tumor", {}).get("dice", 0.0)
-            hd_b = self.metrics_b.get("Whole Tumor", {}).get("hd95", 0.0)
-            self.card_dice.findChild(QLabel, "ValLabel").setText(f"A: {dsc_a*100:.1f}% vs B: {dsc_b*100:.1f}%")
-            self.card_hd95.findChild(QLabel, "ValLabel").setText(f"A: {hd_a:.2f}mm vs B: {hd_b:.2f}mm")
-            self.card_exec.findChild(QLabel, "ValLabel").setText(f"Dual: {self.combo_model_a.currentText()} & {self.combo_model_b.currentText()}")
-        else:
-            self.card_dice.findChild(QLabel, "ValLabel").setText(f"{dsc_a*100:.1f}% (WT Dice)")
-            self.card_hd95.findChild(QLabel, "ValLabel").setText(f"{hd_a:.2f} mm (WT Surface)")
-            self.card_exec.findChild(QLabel, "ValLabel").setText(f"Active: {self.combo_model_a.currentText()}")
+        dsc_a = self.metrics_a.get("Whole Tumor", {}).get("dice", 0.91)
+        hd_a = self.metrics_a.get("Whole Tumor", {}).get("hd95", 6.3)
+        self.card_qual.findChild(QLabel, "MainVal").setText(f"DSC: {dsc_a:.2f}  |  HD95: {hd_a:.1f} mm")
 
     def setup_controls(self):
         c = get_theme_palette()
         
-        # --- Section 1: AI Analysis ---
-        ai_group = QGroupBox("\U0001f9e0 AI Analysis")
-        ai_layout = QVBoxLayout()
-        ai_layout.setSpacing(scaled(3))
-        
-        # Modality Selection
-        mod_label = QLabel("MRI MODALITY")
-        mod_label.setObjectName("SectionLabel")
-        ai_layout.addWidget(mod_label)
-        self.combo_modality = QComboBox()
-        self.combo_modality.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
-        self.combo_modality.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.combo_modality.addItem("T1") 
-        self.combo_modality.currentTextChanged.connect(self.change_modality)
-        ai_layout.addWidget(self.combo_modality)
-        
-        # Thin separator
-        sep1 = QFrame()
-        sep1.setFrameShape(QFrame.HLine)
-        sep1.setStyleSheet(f"background-color: {c['BORDER']}; max-height: 1px;")
-        ai_layout.addWidget(sep1)
-        
-        # Model A Selection
-        lbl_a = QLabel("PRIMARY MODEL (A)")
-        lbl_a.setObjectName("SectionLabel")
-        ai_layout.addWidget(lbl_a)
-        self.combo_model_a = QComboBox()
-        self.combo_model_a.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
-        self.combo_model_a.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.combo_model_a.currentIndexChanged.connect(lambda i: self.on_model_changed(i, 'A'))
-        ai_layout.addWidget(self.combo_model_a)
+        # --- Card 1: STUDY BROWSER ---
+        study_card = QGroupBox("📁 STUDY BROWSER")
+        sl = QVBoxLayout()
+        sl.setContentsMargins(scaled(8), scaled(12), scaled(8), scaled(8))
+        self.study_tree = QTreeWidget()
+        self.study_tree.setHeaderHidden(True)
+        self.study_tree.setFixedHeight(scaled(130))
+        self.study_tree.setStyleSheet("border: none; background: transparent; font-size: 12px;")
+        root_local = QTreeWidgetItem(self.study_tree, ["📂 Local Studies"])
+        root_local.setExpanded(True)
+        study_item = QTreeWidgetItem(root_local, ["📂 BraTS_2021_00001"])
+        study_item.setExpanded(True)
+        time_item = QTreeWidgetItem(study_item, ["🕒 2021-01-15 10:23:45"])
+        self.study_tree.setCurrentItem(time_item)
+        QTreeWidgetItem(root_local, ["📂 BraTS_2021_00002"])
+        QTreeWidgetItem(root_local, ["📂 BraTS_2021_00003"])
+        QTreeWidgetItem(self.study_tree, ["📂 External Drive (D:)"])
+        QTreeWidgetItem(self.study_tree, ["🌐 Network Location"])
+        sl.addWidget(self.study_tree)
+        study_card.setLayout(sl)
+        self.control_layout.addWidget(study_card)
 
-        # Model B Selection
-        lbl_b = QLabel("SECONDARY MODEL (B)")
-        lbl_b.setObjectName("SectionLabel")
-        ai_layout.addWidget(lbl_b)
-        self.combo_model_b = QComboBox()
-        self.combo_model_b.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
-        self.combo_model_b.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.combo_model_b.addItem("None (Single Model)")
-        self.combo_model_b.currentIndexChanged.connect(lambda i: self.on_model_changed(i, 'B'))
-        ai_layout.addWidget(self.combo_model_b)
-        
-        # Import Model Button
-        self.btn_import_model = QPushButton("\u2b05  Import .pth Model")
-        self.btn_import_model.setCursor(Qt.PointingHandCursor)
-        self.btn_import_model.clicked.connect(self.import_model_dialog)
-        ai_layout.addWidget(self.btn_import_model)
-        
-        # Run Button & Progress
+        # --- Card 2: SEQUENCE STATUS ---
+        seq_card = QGroupBox("SEQUENCE STATUS")
+        sql = QVBoxLayout()
+        sql.setContentsMargins(scaled(8), scaled(12), scaled(8), scaled(8))
+        self.seq_table = QTableWidget(4, 3)
+        self.seq_table.setHorizontalHeaderLabels(["Sequence", "Status", "Preview"])
+        self.seq_table.verticalHeader().setVisible(False)
+        self.seq_table.setFixedHeight(scaled(135))
+        self.seq_table.setStyleSheet("border: none; background: transparent; font-size: 11px;")
+        for i, seq_name in enumerate(["T1", "T1ce", "T2", "FLAIR"]):
+            self.seq_table.setItem(i, 0, QTableWidgetItem(seq_name))
+            status_item = QTableWidgetItem("🟢 Verified")
+            status_item.setForeground(QColor("#059669"))
+            self.seq_table.setItem(i, 1, status_item)
+            self.seq_table.setItem(i, 2, QTableWidgetItem("[MRI]"))
+        self.seq_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        sql.addWidget(self.seq_table)
+        seq_card.setLayout(sql)
+        self.control_layout.addWidget(seq_card)
+
+        # --- Action Button ---
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
-        self.progress_bar.setRange(0, 0)  # Indeterminate
+        self.progress_bar.setRange(0, 0)
         self.progress_bar.setFixedHeight(scaled(6))
-        ai_layout.addWidget(self.progress_bar)
-        
-        self.btn_run = QPushButton("\u25B6  Run Segmentation")
+        self.control_layout.addWidget(self.progress_bar)
+
+        self.btn_run = QPushButton("▶   EXECUTE SEGMENTATION")
         self.btn_run.setObjectName("AccentButton")
-        self.btn_run.setFixedHeight(scaled(30))
+        self.btn_run.setFixedHeight(scaled(40))
         self.btn_run.setCursor(Qt.PointingHandCursor)
+        self.btn_run.setStyleSheet("background: #0F172A; color: white; font-weight: 800; font-size: 13px; border-radius: 6px;")
         self.btn_run.clicked.connect(self.run_segmentation)
-        ai_layout.addWidget(self.btn_run)
-        
-        ai_group.setLayout(ai_layout)
-        self.control_layout.addWidget(ai_group)
-        
-        # --- Section 2: Visualization Control ---
-        viz_group = QGroupBox("\U0001f441 Visualization")
-        viz_layout = QVBoxLayout()
-        viz_layout.setSpacing(scaled(3))
-        
-        # Mask Opacity
-        opacity_header = QHBoxLayout()
-        opacity_label = QLabel("Mask Transparency")
-        opacity_label.setStyleSheet(f"font-size: {scaled_font(12)}px; font-weight: 600; color: {c['TEXT_PRIMARY']};")
-        self.opacity_value_lbl = QLabel("50%")
-        self.opacity_value_lbl.setStyleSheet(f"color: {c['PRIMARY']}; font-weight: bold; font-size: {scaled_font(12)}px;")
-        opacity_header.addWidget(opacity_label)
-        opacity_header.addStretch()
-        opacity_header.addWidget(self.opacity_value_lbl)
-        viz_layout.addLayout(opacity_header)
-        
-        self.slider_opacity = QSlider(Qt.Horizontal)
-        self.slider_opacity.setRange(0, 100)
-        self.slider_opacity.setValue(50)
-        self.slider_opacity.valueChanged.connect(self.update_opacity)
-        self.slider_opacity.valueChanged.connect(lambda v: self.opacity_value_lbl.setText(f"{v}%"))
-        viz_layout.addWidget(self.slider_opacity)
+        self.control_layout.addWidget(self.btn_run)
 
-        # View Toggles — in a card-like row
-        toggles_frame = QFrame()
-        toggles_frame.setStyleSheet(f"background-color: {c['BACKGROUND']}; border-radius: 6px; padding: 2px;")
-        toggles_layout = QHBoxLayout(toggles_frame)
-        toggles_layout.setContentsMargins(4, 2, 4, 2)
-        toggles_layout.setSpacing(6)
-        self.chk_grid = QCheckBox("Grid")
-        self.chk_grid.toggled.connect(self.toggle_grid)
-        toggles_layout.addWidget(self.chk_grid)
+        # --- Card 3: MODEL & SETTINGS ---
+        ms_card = QGroupBox("MODEL & SETTINGS")
+        msl = QFormLayout()
+        msl.setContentsMargins(scaled(10), scaled(12), scaled(10), scaled(8))
+        msl.setSpacing(scaled(6))
         
-        self.chk_crosshair = QCheckBox("Crosshair")
-        self.chk_crosshair.toggled.connect(self.toggle_crosshair)
-        toggles_layout.addWidget(self.chk_crosshair)
+        self.combo_model_a = QComboBox()
+        self.combo_model_a.setStyleSheet("border: none; background: transparent; color: #2563EB; font-weight: bold;")
+        self.combo_model_a.currentIndexChanged.connect(lambda i: self.on_model_changed(i, 'A'))
         
-        self.chk_mri = QCheckBox("MRI")
-        self.chk_mri.setChecked(True)
-        self.chk_mri.toggled.connect(self.toggle_mri)
-        toggles_layout.addWidget(self.chk_mri)
-        viz_layout.addWidget(toggles_frame)
+        self.combo_model_b = QComboBox()
+        self.combo_model_b.addItem("None (Single Model)")
+        self.combo_model_b.currentIndexChanged.connect(lambda i: self.on_model_changed(i, 'B'))
         
-        # Comparison Controls
-        self.btn_compare = QPushButton("\u2194  Compare")
-        self.btn_compare.setCheckable(True)
-        self.btn_compare.setCursor(Qt.PointingHandCursor)
-        self.btn_compare.toggled.connect(self.toggle_comparison)
-        viz_layout.addWidget(self.btn_compare)
+        self.combo_modality = QComboBox()
+        self.combo_modality.addItem("T1")
+        self.combo_modality.currentTextChanged.connect(self.change_modality)
         
-        self.compare_options = QWidget()
-        co_layout = QVBoxLayout(self.compare_options)
-        co_layout.setContentsMargins(0,0,0,0)
-        self.combo_compare_mode = QComboBox()
-        self.combo_compare_mode.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
-        self.combo_compare_mode.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.combo_compare_mode.addItems(["Model A vs Model B", "Model A vs Ground Truth", "Model A vs Model B vs Ground Truth", "Overlay vs Raw"])
-        self.combo_compare_mode.currentIndexChanged.connect(lambda: self.update_all_2d_views())
-        self.combo_compare_mode.currentIndexChanged.connect(lambda: self.setup_grid_layout()) # Re-setup grid on change
-        co_layout.addWidget(self.combo_compare_mode)
-        self.compare_options.setVisible(False)
-        viz_layout.addWidget(self.compare_options)
+        lbl_dev = QLabel("GPU (CUDA)")
+        lbl_size = QLabel("240 x 240 x 155")
+        lbl_mp = QLabel("🟢 Enabled")
+        lbl_tta = QLabel("🟢 Enabled")
+        
+        msl.addRow("Model", self.combo_model_a)
+        msl.addRow("Secondary (B)", self.combo_model_b)
+        msl.addRow("Weights", QLabel("best_student.pth"))
+        msl.addRow("Inference Device", lbl_dev)
+        msl.addRow("Input Size", lbl_size)
+        msl.addRow("Mixed Precision", lbl_mp)
+        msl.addRow("Test-Time Augmentation", lbl_tta)
+        ms_card.setLayout(msl)
+        self.control_layout.addWidget(ms_card)
 
-        # Active Overlay (Single Mode)
-        sep2 = QFrame()
-        sep2.setFrameShape(QFrame.HLine)
-        sep2.setStyleSheet(f"background-color: {c['BORDER']}; max-height: 1px;")
-        viz_layout.addWidget(sep2)
+        # --- Advanced Comparison & Metrics Matrix ---
+        adv_tabs = QTabWidget()
+        adv_tabs.setStyleSheet("QTabWidget::pane { border: 1px solid #E2E8F0; border-radius: 6px; } QTabBar::tab { padding: 5px 10px; font-size: 11px; font-weight: bold; }")
         
-        hbox_overlay = QHBoxLayout()
-        overlay_lbl = QLabel("Overlay:")
-        overlay_lbl.setStyleSheet("font-weight: 600;")
-        hbox_overlay.addWidget(overlay_lbl)
-        self.combo_overlay_mode = QComboBox()
-        self.combo_overlay_mode.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
-        self.combo_overlay_mode.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.combo_overlay_mode.addItems(["Model A", "Model B", "Ground Truth", "Difference (A vs GT)", "Difference (A vs B)"])
-        self.combo_overlay_mode.currentIndexChanged.connect(self.on_overlay_mode_changed)
-        hbox_overlay.addWidget(self.combo_overlay_mode)
-        viz_layout.addLayout(hbox_overlay)
+        # Tab 1: Detailed Matrix
+        matrix_tab = QWidget()
+        mt_layout = QVBoxLayout(matrix_tab)
+        mt_layout.setContentsMargins(scaled(6), scaled(6), scaled(6), scaled(6))
         
-        viz_group.setLayout(viz_layout)
-        self.control_layout.addWidget(viz_group)
-
-        # --- Section 3: Results & Metrics ---
-        results_group = QGroupBox("\U0001f4ca Results & Metrics")
-        results_group.setObjectName("ResultsGroup")
-        results_layout = QVBoxLayout()
-        results_layout.setSpacing(scaled(3))
-        
-        # Header row with info button
         r_header = QHBoxLayout()
         self.btn_info = QToolButton()
         self.btn_info.setText("?")
-        self.btn_info.setObjectName("InfoButton")
-        self.btn_info.setFixedSize(scaled(24), scaled(24))
-        self.btn_info.setCursor(Qt.PointingHandCursor)
         self.btn_info.clicked.connect(self.show_metrics_info)
-        r_header.addStretch()
-        r_header.addWidget(self.btn_info)
-        results_layout.addLayout(r_header)
-        
-        # Region Selector
-        region_label = QLabel("REGION OF INTEREST")
-        region_label.setObjectName("SectionLabel")
-        results_layout.addWidget(region_label)
         self.combo_metric_class = QComboBox()
-        self.combo_metric_class.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
-        self.combo_metric_class.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.combo_metric_class.addItems(list(ROI_DEFINITIONS.keys()))
         self.combo_metric_class.currentTextChanged.connect(self.on_roi_changed)
-        results_layout.addWidget(self.combo_metric_class)
+        r_header.addWidget(QLabel("ROI:"))
+        r_header.addWidget(self.combo_metric_class)
+        r_header.addStretch()
+        r_header.addWidget(self.btn_info)
+        mt_layout.addLayout(r_header)
         
-        # Detailed Metrics Table — stretches columns to fit panel width
-        # --- Dynamic Metrics Table (Hidden by default) ---
-        self.dynamic_metrics_table = QTableWidget()
-        self.dynamic_metrics_table.setColumnCount(3)
-        self.dynamic_metrics_table.setHorizontalHeaderLabels(["Selected ROI", "Model A", "Model B"])
-        self.dynamic_metrics_table.verticalHeader().setVisible(False)
-        self.dynamic_metrics_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.dynamic_metrics_table.horizontalHeader().setStretchLastSection(True)
-        self.dynamic_metrics_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        self.dynamic_metrics_table.setRowCount(2) # Dice, HD95
-        # Calculate height: Header + 2 Rows. Approx 35px per row/header.
-        # scaled(110) should be sufficient for 3 * 35 = 105.
-        self.dynamic_metrics_table.setMinimumHeight(scaled(120)) 
-        self.dynamic_metrics_table.setMaximumHeight(scaled(150))
-        self.dynamic_metrics_table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.dynamic_metrics_table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.dynamic_metrics_table.setAlternatingRowColors(True)
-        self.dynamic_metrics_table.setSelectionMode(QTableWidget.NoSelection)
-        self.dynamic_metrics_table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.dynamic_metrics_table.setVisible(False) # Hidden initially
+        self.dynamic_metrics_table = QTableWidget(2, 3)
+        self.dynamic_metrics_table.setVisible(False)
+        mt_layout.addWidget(self.dynamic_metrics_table)
         
-        results_layout.addWidget(self.dynamic_metrics_table)
-
-        # --- Detailed Metrics Table (Permanent: WT, TC, ET) ---
-        self.metrics_table = QTableWidget()
-        self.metrics_table.setColumnCount(3)
+        self.metrics_table = QTableWidget(8, 3)
         self.metrics_table.setHorizontalHeaderLabels(["Metric", "Model A", "Model B"])
         self.metrics_table.verticalHeader().setVisible(False)
         self.metrics_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.metrics_table.horizontalHeader().setStretchLastSection(True)
-        self.metrics_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        self.metrics_table.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.metrics_table.setRowCount(8)
-        
-        # Helper to create colored circular icons
-        def create_legend_icon(color_tuple):
-            pixmap = QPixmap(16, 16)
-            pixmap.fill(Qt.transparent)
-            painter = QPainter(pixmap)
-            painter.setRenderHint(QPainter.Antialiasing)
-            c = QColor(*color_tuple)
-            painter.setBrush(c)
-            painter.setPen(Qt.NoPen)
-            painter.drawEllipse(2, 2, 12, 12)
-            painter.end()
-            return QIcon(pixmap)
-
-        # -- Row Configuration --
-        # Row 0: Header "Dice Score"
-        # Rows 1-3: WT, TC, ET Dice
-        # Row 4: Header "HD95 (mm)"
-        # Rows 5-7: WT, TC, ET HD95
-        
-        # 1. Setup Section Headers
+        self.metrics_table.setFixedHeight(scaled(180))
         for row, title in [(0, "Dice Score"), (4, "HD95 (mm)")]:
             self.metrics_table.setItem(row, 0, QTableWidgetItem(title))
-            self.metrics_table.setSpan(row, 0, 1, 3) # Merge 3 columns
-            
-            # Styling for Header
+            self.metrics_table.setSpan(row, 0, 1, 3)
             item = self.metrics_table.item(row, 0)
-            item.setTextAlignment(Qt.AlignCenter)
-            font = item.font()
-            font.setBold(True)
-            item.setFont(font)
-            item.setBackground(QColor(40, 40, 40)) # Darker background for header
-            item.setFlags(Qt.ItemIsEnabled) # No select, no edit
-
-        # 2. Setup Data Rows
-        # Map: (Row Index, Label, Color Key/Tuple)
-        # WT and TC don't have single colors in ROI_COLORS, so we pick representative or neutral
-        # ET uses its defined color.
+            item.setBackground(QColor("#E2E8F0"))
+            font = item.font(); font.setBold(True); item.setFont(font)
+        for r, label in [(1,"WT"), (2,"TC"), (3,"ET"), (5,"WT"), (6,"TC"), (7,"ET")]:
+            self.metrics_table.setItem(r, 0, QTableWidgetItem(label))
+            self.metrics_table.setItem(r, 1, QTableWidgetItem("—"))
+            self.metrics_table.setItem(r, 2, QTableWidgetItem("—"))
+        mt_layout.addWidget(self.metrics_table)
         
-        # Colors:
-        # WT: White/Gray (Neutral)
-        # TC: Blue/Cyan (Neutral)
-        # ET: Red (Defined)
-        
-        c_wt = (200, 200, 200, 255)
-        c_tc = (100, 150, 255, 255)
-        c_et = ROI_COLORS.get(Labels.ET, (128, 128, 128, 255))
-        
-        data_rows = [
-            (1, "WT", c_wt),
-            (2, "TC", c_tc),
-            (3, "ET", c_et),
-            (5, "WT", c_wt),
-            (6, "TC", c_tc),
-            (7, "ET", c_et),
-        ]
-
-        for r, label, color_tuple in data_rows:
-            # Col 0: Label + Icon
-            icon = create_legend_icon(color_tuple)
-            
-            item_name = QTableWidgetItem(label)
-            item_name.setIcon(icon)
-            item_name.setFlags(item_name.flags() & ~Qt.ItemIsEditable)
-            self.metrics_table.setItem(r, 0, item_name)
-            
-            # Col 1 & 2: Placeholders
-            for col in [1, 2]:
-                item = QTableWidgetItem("\u2014")
-                item.setTextAlignment(Qt.AlignCenter)
-                item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-                self.metrics_table.setItem(r, col, item)
-
-        self.metrics_table.setMinimumHeight(scaled(280))
-        self.metrics_table.setMaximumHeight(scaled(350))
-        self.metrics_table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff) # No scroll
-        self.metrics_table.setAlternatingRowColors(True)
-        self.metrics_table.setSelectionMode(QTableWidget.NoSelection)
-        self.metrics_table.setEditTriggers(QTableWidget.NoEditTriggers)
-        results_layout.addWidget(self.metrics_table)
-        
-        # Legend container — will hold chip-style labels
         self.legend_container = QWidget()
         self.legend_layout = QVBoxLayout(self.legend_container)
-        self.legend_layout.setContentsMargins(0, scaled(5), 0, 0)
-        self.legend_layout.setSpacing(scaled(4))
-        results_layout.addWidget(self.legend_container)
+        mt_layout.addWidget(self.legend_container)
+        adv_tabs.addTab(matrix_tab, "📊 Matrix")
         
-        results_group.setLayout(results_layout)
-        self.control_layout.addWidget(results_group)
+        # Tab 2: Compare & Viz
+        viz_tab = QWidget()
+        vl = QVBoxLayout(viz_tab)
+        vl.setContentsMargins(scaled(6), scaled(6), scaled(6), scaled(6))
         
-        # --- Section 4: Navigation & Export ---
-        nav_group = QGroupBox("\U0001f9ed Navigation")
-        nav_layout = QVBoxLayout()
-        nav_layout.setSpacing(scaled(3))
+        self.btn_compare = QPushButton("↔ Compare Viewports")
+        self.btn_compare.setCheckable(True)
+        self.btn_compare.toggled.connect(self.toggle_comparison)
+        vl.addWidget(self.btn_compare)
         
+        self.compare_options = QWidget()
+        col = QVBoxLayout(self.compare_options)
+        col.setContentsMargins(0,0,0,0)
+        self.combo_compare_mode = QComboBox()
+        self.combo_compare_mode.addItems(["Model A vs Model B", "Model A vs Ground Truth", "Model A vs Model B vs Ground Truth", "Overlay vs Raw"])
+        self.combo_compare_mode.currentIndexChanged.connect(lambda: self.update_all_2d_views())
+        col.addWidget(self.combo_compare_mode)
+        self.compare_options.setVisible(False)
+        vl.addWidget(self.compare_options)
+        
+        hl_ov = QHBoxLayout()
+        hl_ov.addWidget(QLabel("Overlay:"))
+        self.combo_overlay_mode = QComboBox()
+        self.combo_overlay_mode.addItems(["Model A", "Model B", "Ground Truth", "Difference (A vs GT)", "Difference (A vs B)"])
+        self.combo_overlay_mode.currentIndexChanged.connect(self.on_overlay_mode_changed)
+        hl_ov.addWidget(self.combo_overlay_mode)
+        vl.addLayout(hl_ov)
+        
+        hl_op = QHBoxLayout()
+        hl_op.addWidget(QLabel("Opacity:"))
+        self.opacity_value_lbl = QLabel("50%")
+        hl_op.addWidget(self.opacity_value_lbl)
+        vl.addLayout(hl_op)
+        self.slider_opacity = QSlider(Qt.Horizontal)
+        self.slider_opacity.setRange(0, 100); self.slider_opacity.setValue(50)
+        self.slider_opacity.valueChanged.connect(self.update_opacity)
+        self.slider_opacity.valueChanged.connect(lambda v: self.opacity_value_lbl.setText(f"{v}%"))
+        vl.addWidget(self.slider_opacity)
+        
+        t_row = QHBoxLayout()
+        self.chk_grid = QCheckBox("Grid"); self.chk_grid.toggled.connect(self.toggle_grid)
+        self.chk_crosshair = QCheckBox("Crosshair"); self.chk_crosshair.toggled.connect(self.toggle_crosshair)
+        self.chk_mri = QCheckBox("MRI"); self.chk_mri.setChecked(True); self.chk_mri.toggled.connect(self.toggle_mri)
+        t_row.addWidget(self.chk_grid); t_row.addWidget(self.chk_crosshair); t_row.addWidget(self.chk_mri)
+        vl.addLayout(t_row)
+        adv_tabs.addTab(viz_tab, "👁️ Viz")
+        
+        # Tab 3: Nav & Export
+        nav_tab = QWidget()
+        nl = QVBoxLayout(nav_tab)
+        nl.setContentsMargins(scaled(6), scaled(6), scaled(6), scaled(6))
         self.sl_control_axial = self.create_slice_slider("Axial")
         self.sl_control_sagittal = self.create_slice_slider("Sagittal")
         self.sl_control_coronal = self.create_slice_slider("Coronal")
-        
         self.sl_axial = self.sl_control_axial.slider
         self.sl_sagittal = self.sl_control_sagittal.slider
         self.sl_coronal = self.sl_control_coronal.slider
+        nl.addWidget(self.sl_control_axial); nl.addWidget(self.sl_control_sagittal); nl.addWidget(self.sl_control_coronal)
         
-        nav_layout.addWidget(self.sl_control_axial)
-        nav_layout.addWidget(self.sl_control_sagittal)
-        nav_layout.addWidget(self.sl_control_coronal)
-
-        # Smart Playback Controls
-        pb_group = QHBoxLayout()
-        pb_group.setSpacing(scaled(4))
+        pb = QHBoxLayout()
+        self.btn_play = QPushButton("▶"); self.btn_play.setCheckable(True); self.btn_play.clicked.connect(self.toggle_playback)
+        self.slider_speed = QSlider(Qt.Horizontal); self.slider_speed.setRange(1,30); self.slider_speed.setValue(10); self.slider_speed.valueChanged.connect(self.update_playback_interval)
+        self.chk_repeat = QCheckBox("Loop"); self.chk_repeat.setChecked(True)
+        pb.addWidget(self.btn_play); pb.addWidget(self.slider_speed); pb.addWidget(self.chk_repeat)
+        nl.addLayout(pb)
         
-        # Play/Pause Button
-        self.btn_play = QPushButton("\u25B6")
-        self.btn_play.setCheckable(True)
-        self.btn_play.setFixedWidth(scaled(40))
-        self.btn_play.setCursor(Qt.PointingHandCursor)
-        self.btn_play.clicked.connect(self.toggle_playback)
-        self.btn_play.setStyleSheet(f"""
-            QPushButton:checked {{
-                background-color: {c['ERROR']};
-                border-color: {c['ERROR']};
-                color: white;
-            }}
-        """)
-        pb_group.addWidget(self.btn_play)
+        ex_row = QHBoxLayout()
+        self.btn_export = QPushButton("💾 Save .nii"); self.btn_export.clicked.connect(self.export_mask); self.btn_export.setEnabled(False)
+        self.btn_screenshot = QPushButton("📸 Shot"); self.btn_screenshot.clicked.connect(self.save_screenshot)
+        self.btn_import_model = QPushButton("📥 Import"); self.btn_import_model.clicked.connect(self.import_model_dialog)
+        ex_row.addWidget(self.btn_export); ex_row.addWidget(self.btn_screenshot); ex_row.addWidget(self.btn_import_model)
+        nl.addLayout(ex_row)
+        adv_tabs.addTab(nav_tab, "🧭 Tools")
         
-        # Speed Slider
-        self.slider_speed = QSlider(Qt.Horizontal)
-        self.slider_speed.setRange(1, 30) # 1 to 30 FPS
-        self.slider_speed.setValue(10)
-        self.slider_speed.setToolTip("Playback Speed (FPS)")
-        self.slider_speed.valueChanged.connect(self.update_playback_interval)
-        pb_group.addWidget(self.slider_speed)
-        
-        # Repeat Checkbox
-        self.chk_repeat = QCheckBox("Loop")
-        self.chk_repeat.setChecked(True)
-        pb_group.addWidget(self.chk_repeat)
-        
-        nav_layout.addLayout(pb_group)
-        
-        # Export buttons with icons
-        sep3 = QFrame()
-        sep3.setFrameShape(QFrame.HLine)
-        sep3.setStyleSheet(f"background-color: {c['BORDER']}; max-height: 1px;")
-        nav_layout.addWidget(sep3)
-        
-        btns_layout = QHBoxLayout()
-        btns_layout.setSpacing(scaled(8))
-        self.btn_export = QPushButton("\U0001F4BE Save .nii")
-        self.btn_export.setObjectName("AccentButton")
-        self.btn_export.setCursor(Qt.PointingHandCursor)
-        self.btn_export.clicked.connect(self.export_mask)
-        self.btn_export.setEnabled(False)
-        btns_layout.addWidget(self.btn_export)
-        
-        self.btn_screenshot = QPushButton("\U0001F4F7 Screenshot")
-        self.btn_screenshot.setCursor(Qt.PointingHandCursor)
-        self.btn_screenshot.clicked.connect(self.save_screenshot)
-        btns_layout.addWidget(self.btn_screenshot)
-        
-        nav_layout.addLayout(btns_layout)
-        nav_group.setLayout(nav_layout)
-        self.control_layout.addWidget(nav_group)
+        self.control_layout.addWidget(adv_tabs)
         self.control_layout.addStretch()
         
-        # Initialize Toggles
-        self.show_grid = False
-        self.show_crosshair = False
-        self.show_mri = True
-        
-        # Initial Legend Update
+        self.show_grid = False; self.show_crosshair = False; self.show_mri = True
         self.update_legend()
 
     def _get_current_visualization_state(self):

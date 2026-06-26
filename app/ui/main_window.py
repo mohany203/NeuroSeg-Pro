@@ -87,9 +87,9 @@ class MainWindow(QMainWindow):
         btn.setFixedHeight(scaled(34))
         btn.setStyleSheet(f"""
             QPushButton {{
-                background-color: {c['SURFACE']};
+                background-color: transparent;
                 color: {c['TEXT_PRIMARY']};
-                border: 1px solid {c['BORDER']};
+                border: none;
                 border-radius: {scaled(6)}px;
                 padding: {scaled(4)}px {scaled(14)}px;
                 font-weight: 600;
@@ -97,7 +97,6 @@ class MainWindow(QMainWindow):
             }}
             QPushButton:hover {{
                 background-color: {c['SURFACE_LIGHT']};
-                border-color: {c['PRIMARY']};
                 color: {c['PRIMARY']};
             }}
         """)
