@@ -170,7 +170,7 @@ If you wish to contribute to source code or build custom installers locally:
         <br />
         <sub><b>Mohamed Hany</b></sub>
       </a><br />
-      <small>Lead Application Architect & GUI Suite</small>
+      <small>Application Architect & GUI Suite</small>
     </td>
     <td align="center" width="220px">
       <a href="https://github.com/Omareldash">
