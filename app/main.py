@@ -17,15 +17,20 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 from PyQt5.QtWidgets import QApplication, QMainWindow
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon
+from app.version import __version__
+from app.core.first_launch import initialize_application_environment
 
 def main():
+    # Execute first-launch verification, directory setup, and migration
+    initialize_application_environment()
+
     # --- High-DPI Scaling (MUST be before QApplication) ---
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
     QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
 
     # Fix for Windows Taskbar Icon
     if os.name == 'nt':
-        myappid = 'gradproject.neuroseg.pro.v1'
+        myappid = f'gradproject.neuroseg.pro.v{__version__}'
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
     app = QApplication(sys.argv)

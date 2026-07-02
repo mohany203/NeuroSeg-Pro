@@ -1,14 +1,10 @@
-
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-build/
 develop-eggs/
-dist/*
-!dist/*.exe
 downloads/
 eggs/
 .eggs/
@@ -22,17 +18,27 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual Environment
+# Virtual Environments
 .venv/
 venv/
 env/
 .env
 
-# IDEs
+# Build & Dist Artifacts
+build/
+dist/
+release/
+iscc_out.txt
+
+# IDEs & System
 .idea/
 .vscode/
+Thumbs.db
+.DS_Store
+powershell.bat
+powershell.cmd
 
-# Project Specific
+# Project Specific & Temporary Data
 *.pth
 *.onnx
 models/
@@ -41,8 +47,8 @@ model_output/
 .agent/
 brain/
 scratch/
-temp_nb_output.txt
-temp_nb_scan.py
+temp_*
+verify_setup.py
 
 # Logs
 *.log

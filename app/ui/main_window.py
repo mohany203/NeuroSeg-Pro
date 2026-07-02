@@ -8,13 +8,14 @@ from app.ui.settings_widget import SettingsWidget
 from app.ui.theme import apply_theme, get_theme_palette, scaled
 from app.core.loader import NiftiLoader
 from app.ui.settings import Settings
+from app.version import __version__
 import os
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.settings = Settings()
-        self.setWindowTitle("NeuroSeg-Pro Volumetric Clinical Platform")
+        self.setWindowTitle(f"NeuroSeg-Pro v{__version__} — Volumetric Clinical Platform")
         self.resize(scaled(1380), scaled(900))
         
         # Central Container
@@ -160,8 +161,7 @@ class MainWindow(QMainWindow):
 
     def refresh_theme(self):
         app = QApplication.instance()
-        from app.ui.theme import get_dpi_scale
-        apply_theme(app, dpi_scale=get_dpi_scale())
+        apply_theme(app)
         self.viewer_page.refresh_theme()
         
         c = get_theme_palette()

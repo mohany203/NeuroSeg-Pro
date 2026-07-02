@@ -18,42 +18,43 @@ class InferenceEngine:
         If the user has a custom model class, this needs to be updated or dynamic loading implemented.
         """
         try:
-            # Definition of the model architecture (Must match training)
-            # Defaulting to a standard            # Load Custom Quantum Model
-            from app.core.custom_model import DynUNet
+            import warnings
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=FutureWarning)
+                checkpoint = torch.load(model_path, map_location=self.device, weights_only=False)
             
+            # Determine the correct state dict
+            state_dict = None
+            if isinstance(checkpoint, dict):
+                if 'model_state_dict' in checkpoint:
+                    state_dict = checkpoint['model_state_dict']
+                elif 'teacher_model' in checkpoint:
+                    state_dict = checkpoint['teacher_model']
+                elif 'student_model' in checkpoint:
+                    state_dict = checkpoint['student_model']
+                else:
+                    state_dict = checkpoint
+            else:
+                state_dict = checkpoint
+
+            # Sanitize keys if needed
+            new_state_dict = {}
+            for k, v in state_dict.items():
+                name = k.replace("module.", "")
+                new_state_dict[name] = v
+                
+            # Inspect state_dict to determine architecture (Classical Teacher vs Quantum Student)
+            use_quantum = any(k.startswith("quantum_bottleneck.") for k in new_state_dict.keys())
+
+            from app.core.custom_model import DynUNet
             self.model = DynUNet(
                 spatial_dims=3,
                 in_channels=4,
                 out_channels=4,
-                deep_supervision=False, # No deep supervision needed for inference
-                KD=False
+                deep_supervision=False,
+                KD=False,
+                use_quantum=use_quantum
             ).to(self.device)
-
-            checkpoint = torch.load(model_path, map_location=self.device)
-            
-            # Determine the correct state dict
-            state_dict = None
-            if 'model_state_dict' in checkpoint:
-                state_dict = checkpoint['model_state_dict']
-            elif 'teacher_model' in checkpoint:
-                state_dict = checkpoint['teacher_model']
-            elif 'student_model' in checkpoint:
-                state_dict = checkpoint['student_model']
-            else:
-                state_dict = checkpoint
-
-            # Fix potential key mismatches (e.g. 'module.' prefix or missing 'model.' prefix)
-            # MONAI UNet expects keys like 'model.0.conv...'
-            # Use strict=False to allow loading partially matching models if needed, 
-            # but ideally we want exact match. 
-            
-            # Sanitize keys if needed
-            new_state_dict = {}
-            for k, v in state_dict.items():
-                # Remove 'module.' prefix if present (DataParallel)
-                name = k.replace("module.", "")
-                new_state_dict[name] = v
             
             # Attempt load
             try:

@@ -14,10 +14,11 @@ SETTINGS_FILE = os.path.join(APP_DATA_DIR, "settings.json")
 
 DEFAULT_SETTINGS = {
     "theme": "Light",
-    "font_size": 14,  # Reset to standard size
-
+    "font_size": 14,
+    "font_family": "Segoe UI",
     "visual_quality": "High",
-    "default_opacity": 0.6,
+    "default_opacity": 0.75,
+    "ui_zoom": 1.0,
     "show_grid": True,
     "recent_files": [],
     "models": [],
@@ -44,7 +45,6 @@ class Settings:
             except Exception as e:
                 print(f"Error loading settings: {e}")
         
-        self.data["theme"] = "Light" # Force light theme matching user clinical design
         self.validate_paths()
         
         # Always scan for new models in 'models' folder

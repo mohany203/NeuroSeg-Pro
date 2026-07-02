@@ -3,13 +3,14 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QDesktopServices, QIcon
 from PyQt5.QtCore import QUrl
 from app.ui.theme import get_theme_palette, scaled
+from app.version import get_version_string, __version__
 
 class AboutDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         c = get_theme_palette()
         
-        self.setWindowTitle("About NeuroSeg-Pro")
+        self.setWindowTitle(f"About NeuroSeg-Pro v{__version__}")
         self.resize(scaled(650), scaled(550))
         self.setStyleSheet(f"background-color: {c['BACKGROUND']}; color: {c['TEXT_PRIMARY']};")
         
@@ -21,11 +22,11 @@ class AboutDialog(QDialog):
         header_layout = QHBoxLayout()
         title_lbl = QLabel("NeuroSeg-Pro")
         title_lbl.setStyleSheet(f"font-size: {scaled(26)}px; font-weight: 800; color: {c['PRIMARY']};")
-        ver_lbl = QLabel("v1.0.0 Clinical Edition")
-        ver_lbl.setStyleSheet(f"font-size: {scaled(14)}px; font-weight: 600; color: {c['TEXT_SECONDARY']}; align-self: flex-end;")
+        ver_lbl = QLabel(get_version_string())
+        ver_lbl.setStyleSheet(f"font-size: {scaled(14)}px; font-weight: 600; color: {c['TEXT_SECONDARY']};")
         
         header_layout.addWidget(title_lbl)
-        header_layout.addWidget(ver_lbl)
+        header_layout.addWidget(ver_lbl, 0, Qt.AlignBottom)
         header_layout.addStretch()
         layout.addLayout(header_layout)
         
@@ -60,12 +61,37 @@ class AboutDialog(QDialog):
             "4. Analyze & Export: Review Axial, Coronal, Sagittal, and 3D rendered slices. Compare Model A vs Model B or Ground Truth annotations, and click 'Export Report' to generate a clinical PDF summary.", c)
         c_layout.addWidget(usage_box)
         
-        # Team Showcase
-        team_box = self._create_section("👥 Meet the Team", 
-            "• Mohamed Hany — Project Lead & AI Architect\n"
-            "• Ahmed Samy — Deep Learning & Volumetric Rendering\n"
-            "• Omar Eldash — Data Preprocessing & Clinical Validation", c)
-        c_layout.addWidget(team_box)
+        # Team Showcase (Custom Interactive Cards)
+        team_frame = QFrame()
+        team_frame.setStyleSheet(f"background-color: {c['SURFACE']}; border: 1px solid {c['BORDER']}; border-radius: {scaled(8)}px; padding: {scaled(12)}px;")
+        tf_layout = QVBoxLayout(team_frame)
+        tf_layout.setContentsMargins(scaled(8), scaled(8), scaled(8), scaled(8))
+        tf_layout.setSpacing(scaled(10))
+        
+        t_title = QLabel("👥 Meet the Team")
+        t_title.setStyleSheet(f"font-size: {scaled(16)}px; font-weight: bold; color: {c['PRIMARY']}; border: none; background: transparent;")
+        tf_layout.addWidget(t_title)
+        
+        team_members = [
+            ("Mohamed Hany", "Responsible for Application & Architecture", "https://github.com/mohany203"),
+            ("Ahmed Samy", "Responsible for AI Model & Deep Learning", "https://github.com/ASamy10"),
+            ("Omar Eldash", "Responsible for AI Model & Volumetric Inference", "https://github.com/Omareldash"),
+        ]
+        
+        for name, role, url in team_members:
+            m_row = QHBoxLayout()
+            m_info = QLabel(f"<b>{name}</b> — <span style='color:{c['TEXT_SECONDARY']};'>{role}</span>")
+            m_info.setStyleSheet(f"font-size: {scaled(13)}px; color: {c['TEXT_PRIMARY']}; border: none; background: transparent;")
+            m_btn = QPushButton("🔗 GitHub")
+            m_btn.setCursor(Qt.PointingHandCursor)
+            m_btn.setStyleSheet(f"QPushButton {{ background: {c['SURFACE_LIGHT']}; color: {c['PRIMARY']}; border: 1px solid {c['BORDER']}; border-radius: {scaled(4)}px; padding: {scaled(4)}px {scaled(10)}px; font-size: {scaled(11)}px; font-weight: bold; }} QPushButton:hover {{ background: {c['PRIMARY']}; color: white; }}")
+            m_btn.clicked.connect(lambda _, u=url: QDesktopServices.openUrl(QUrl(u)))
+            m_row.addWidget(m_info)
+            m_row.addStretch()
+            m_row.addWidget(m_btn)
+            tf_layout.addLayout(m_row)
+            
+        c_layout.addWidget(team_frame)
         
         scroll.setWidget(container)
         layout.addWidget(scroll)

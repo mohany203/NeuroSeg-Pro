@@ -3,6 +3,7 @@ from PyQt5.QtGui import QPalette, QColor, QFont
 from app.ui.settings import Settings
 
 # --- Global DPI Scale Factor ---
+_base_dpi_scale = 1.0
 _dpi_scale = 1.0
 
 def get_dpi_scale():
@@ -25,6 +26,7 @@ DARK_THEME = {
     "PRIMARY_HOVER": "#2563EB",  # Blue-600
     "PRIMARY_LIGHT": "#3B82F620",# Blue-500 @ 12%
     "ACCENT": "#8B5CF6",         # Violet-500
+    "ACCENT_HOVER": "#7C3AED",   # Violet-600
     "ACCENT_LIGHT": "#8B5CF620", # Violet @ 12%
     "BACKGROUND": "#0F0F12",     # Rich deep black
     "SURFACE": "#1A1A22",        # Card surface
@@ -60,6 +62,7 @@ LIGHT_THEME = {
     "PRIMARY_HOVER": "#1E40AF",
     "PRIMARY_LIGHT": "#EFF6FF",
     "ACCENT": "#2563EB",
+    "ACCENT_HOVER": "#1D4ED8",
     "ACCENT_LIGHT": "#EFF6FF",
     "BACKGROUND": "#FFFFFF",     # Pure white background matching screenshot
     "SURFACE": "#FFFFFF",
@@ -95,14 +98,20 @@ def get_theme_palette():
     start_theme = settings.get("theme")
     return DARK_THEME if start_theme == "Dark" else LIGHT_THEME
 
-def apply_theme(app: QApplication, dpi_scale: float = 1.0):
+def apply_theme(app: QApplication, dpi_scale: float = None):
     """Applies a modern, rich theme (Light/Dark) with DPI-aware scaling."""
-    global _dpi_scale
-    _dpi_scale = dpi_scale
-    
+    global _dpi_scale, _base_dpi_scale
+    if dpi_scale is not None:
+        _base_dpi_scale = dpi_scale
+        
     settings = Settings()
+    ui_zoom = settings.get("ui_zoom")
+    if ui_zoom is None:
+        ui_zoom = 1.0
+    _dpi_scale = _base_dpi_scale * float(ui_zoom)
     base_font_size = settings.get("font_size")  # e.g. 14
     start_theme = settings.get("theme")
+    font_family = settings.get("font_family") or "Segoe UI"
     
     # Scale the base font size by DPI
     fs = scaled(base_font_size)
@@ -113,7 +122,7 @@ def apply_theme(app: QApplication, dpi_scale: float = 1.0):
     app.setStyle("Fusion")
     
     # Set Global Font
-    font = QFont("Segoe UI")
+    font = QFont(font_family)
     font.setPixelSize(max(5, fs))
     app.setFont(font)
     
@@ -141,13 +150,31 @@ def apply_theme(app: QApplication, dpi_scale: float = 1.0):
     
     app.setStyleSheet(f"""
         /* === GLOBAL === */
-        QMainWindow {{
+        QMainWindow, QDialog, QMessageBox {{
             background-color: {c["BACKGROUND"]};
+            color: {c["TEXT_PRIMARY"]};
         }}
         QWidget {{
-            font-family: 'Segoe UI', 'Inter', sans-serif;
+            font-family: '{font_family}', 'Segoe UI', 'Inter', sans-serif;
             font-size: {sf(fs)}px;
             color: {c["TEXT_PRIMARY"]};
+        }}
+        
+        QMessageBox QLabel {{
+            color: {c["TEXT_PRIMARY"]};
+            font-size: {sf(fs)}px;
+            font-weight: 600;
+        }}
+        QMessageBox QPushButton {{
+            background-color: {c["PRIMARY"]};
+            color: #FFFFFF;
+            min-width: {s(80)}px;
+            padding: {s(6)}px {s(16)}px;
+            border-radius: {s(6)}px;
+            font-weight: bold;
+        }}
+        QMessageBox QPushButton:hover {{
+            background-color: {c["PRIMARY_HOVER"]};
         }}
         
         /* ToolTips */
@@ -173,6 +200,21 @@ def apply_theme(app: QApplication, dpi_scale: float = 1.0):
         QFrame#Sidebar {{
             background: {c["SIDEBAR_BG"]};
             border-right: 1px solid {c["BORDER"]};
+        }}
+        
+        QLabel#SidebarPlaneLabel {{
+            font-weight: bold;
+            color: {c["TEXT_PRIMARY"]};
+            font-size: {sf(11)}px;
+            background: transparent;
+            border: none;
+        }}
+        QLabel#SidebarSliceValue {{
+            font-weight: bold;
+            color: {c["PRIMARY"]};
+            font-size: {sf(11)}px;
+            background: transparent;
+            border: none;
         }}
         
         QFrame#ViewportFrame {{
@@ -578,5 +620,94 @@ def apply_theme(app: QApplication, dpi_scale: float = 1.0):
         QMessageBox QLabel {{
             color: {c["TEXT_PRIMARY"]};
             font-size: {sf(fs)}px;
+        }}
+        QMessageBox QPushButton {{
+            background-color: {c["PRIMARY"]};
+            color: white;
+            border: none;
+            border-radius: {s(6)}px;
+            padding: {s(8)}px {s(20)}px;
+            font-weight: 600;
+            font-size: {sf(fs)}px;
+            min-width: {s(80)}px;
+        }}
+        QMessageBox QPushButton:hover {{
+            background-color: {c["PRIMARY_HOVER"]};
+        }}
+
+        /* === DIALOG === */
+        QDialog {{
+            background-color: {c["BACKGROUND"]};
+            color: {c["TEXT_PRIMARY"]};
+        }}
+
+        /* === SPLITTER === */
+        QSplitter::handle {{
+            background-color: {c["BORDER"]};
+        }}
+        QSplitter::handle:horizontal {{
+            width: {s(5)}px;
+            margin: 0px;
+            border-left: 1px solid {c["BORDER"]};
+            border-right: 1px solid {c["BORDER"]};
+            background: {c["SURFACE_LIGHT"]};
+        }}
+        QSplitter::handle:vertical {{
+            height: {s(5)}px;
+            margin: 0px;
+            border-top: 1px solid {c["BORDER"]};
+            border-bottom: 1px solid {c["BORDER"]};
+            background: {c["SURFACE_LIGHT"]};
+        }}
+        QSplitter::handle:hover {{
+            background: {c["PRIMARY"]}40;
+        }}
+
+        /* === INPUT DIALOG === */
+        QInputDialog {{
+            background-color: {c["BACKGROUND"]};
+            color: {c["TEXT_PRIMARY"]};
+        }}
+        QInputDialog QLabel {{
+            color: {c["TEXT_PRIMARY"]};
+        }}
+        QInputDialog QLineEdit {{
+            background-color: {c["INPUT_BG"]};
+            color: {c["TEXT_PRIMARY"]};
+            border: 1px solid {c["BORDER"]};
+            border-radius: {s(6)}px;
+            padding: {s(6)}px;
+        }}
+
+        /* === TREE VIEW === */
+        QTreeView {{
+            background-color: {c["SURFACE"]};
+            color: {c["TEXT_PRIMARY"]};
+            border: none;
+            border-radius: {s(4)}px;
+        }}
+        QTreeView::item:selected {{
+            background: {c["PRIMARY"]};
+            color: white;
+            border-radius: {s(4)}px;
+        }}
+        QTreeView::item:hover {{
+            background: {c["SURFACE_HOVER"]};
+        }}
+        QTreeView::branch:has-children:!has-siblings:closed,
+        QTreeView::branch:closed:has-children:has-siblings {{
+            border-image: none;
+            image: none;
+        }}
+        QTreeView::branch:open:has-children:!has-siblings,
+        QTreeView::branch:open:has-children:has-siblings {{
+            border-image: none;
+            image: none;
+        }}
+
+        /* === FORM LAYOUT LABELS === */
+        QFormLayout QLabel {{
+            color: {c["TEXT_SECONDARY"]};
+            font-weight: 500;
         }}
     """)

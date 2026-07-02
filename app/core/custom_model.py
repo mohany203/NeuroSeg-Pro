@@ -6,9 +6,13 @@ from monai.networks.blocks.convolutions import Convolution
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
 
+import warnings
+
 # Try importing pennylane, but handle if missing
 try:
-    import pennylane as qml
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        import pennylane as qml
     HAS_PENNYLANE = True
 except ImportError:
     HAS_PENNYLANE = False
@@ -18,6 +22,7 @@ except ImportError:
 n_qubits = 10
 n_layers = 8 # Reverted to 8 as checkpoint has shape [8, 10, 3]
 
+quantum_circuit = None
 if HAS_PENNYLANE:
     dev = qml.device("default.qubit", wires=n_qubits)
 
@@ -30,8 +35,23 @@ if HAS_PENNYLANE:
 class QuantumLayer(nn.Module):
     def __init__(self, n_qubits, n_layers):
         super().__init__()
-        if not HAS_PENNYLANE:
-            raise ImportError("PennyLane is required for QuantumLayer. Please 'pip install pennylane'.")
+        global HAS_PENNYLANE, qml, dev, quantum_circuit
+        if not HAS_PENNYLANE or quantum_circuit is None:
+            try:
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore", category=DeprecationWarning)
+                    import pennylane as qml_tmp
+                qml = qml_tmp
+                HAS_PENNYLANE = True
+                dev = qml.device("default.qubit", wires=n_qubits)
+                @qml.qnode(dev, interface="torch")
+                def _qc(inputs, weights):
+                    qml.templates.AngleEmbedding(inputs, wires=range(n_qubits))
+                    qml.templates.StronglyEntanglingLayers(weights, wires=range(n_qubits))
+                    return [qml.expval(qml.PauliZ(wires=i)) for i in range(n_qubits)]
+                quantum_circuit = _qc
+            except ImportError:
+                raise ImportError("PennyLane is required for QuantumLayer. Please 'pip install pennylane'.")
             
         weight_shapes = {"weights": (n_layers, n_qubits, 3)}
         self.q_layer = qml.qnn.TorchLayer(quantum_circuit, weight_shapes)
@@ -242,7 +262,8 @@ class DynUNet(nn.Module):
         in_channels: int,
         out_channels: int,
         deep_supervision: bool,
-        KD: bool = False
+        KD: bool = False,
+        use_quantum: bool = True
     ):
         super().__init__()
         self.spatial_dims = spatial_dims
@@ -250,6 +271,7 @@ class DynUNet(nn.Module):
         self.out_channels = out_channels
         self.deep_supervision = deep_supervision
         self.KD_enabled = KD
+        self.use_quantum = use_quantum
         
         self.input_conv = UnetBasicBlock( spatial_dims=self.spatial_dims, in_channels=self.in_channels, out_channels=64, kernel_size=3, stride=1)
         self.down1 = UnetBasicBlock( spatial_dims=self.spatial_dims, in_channels=64, out_channels=96, kernel_size=3, stride=2)
@@ -258,11 +280,20 @@ class DynUNet(nn.Module):
         self.down4 = UnetBasicBlock( spatial_dims=self.spatial_dims, in_channels=192, out_channels=256, kernel_size=3, stride=2)
         self.down5 = UnetBasicBlock( spatial_dims=self.spatial_dims, in_channels=256, out_channels=384, kernel_size=3, stride=2)
         
-        self.quantum_bottleneck = ParallelQuantumBottleneck(
-                                     in_channels=384,
-                                     out_channels=512,
-                                     target_spatial_shape=(2, 2, 2)
-                                     )
+        if self.use_quantum:
+            self.quantum_bottleneck = ParallelQuantumBottleneck(
+                                         in_channels=384,
+                                         out_channels=512,
+                                         target_spatial_shape=(2, 2, 2)
+                                         )
+        else:
+            self.bottleneck = UnetBasicBlock(
+                                         spatial_dims=self.spatial_dims,
+                                         in_channels=384,
+                                         out_channels=512,
+                                         kernel_size=3,
+                                         stride=2
+                                         )
         
         self.up1 = UnetUpBlock( spatial_dims=self.spatial_dims, in_channels=512, out_channels=384, kernel_size=3, upsample_kernel_size=2)
         self.up2 = UnetUpBlock( spatial_dims=self.spatial_dims, in_channels=384, out_channels=256, kernel_size=3, upsample_kernel_size=2)
@@ -282,7 +313,10 @@ class DynUNet(nn.Module):
         x3 = self.down3( x2 )
         x4 = self.down4( x3 )
         x5 = self.down5( x4 )
-        x6 = self.quantum_bottleneck( x5 )
+        if hasattr(self, 'quantum_bottleneck'):
+            x6 = self.quantum_bottleneck( x5 )
+        else:
+            x6 = self.bottleneck( x5 )
         
         x7  = self.up1( x6, x5 )
         x8  = self.up2( x7, x4 )
